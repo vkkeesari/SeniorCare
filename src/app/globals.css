@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --sage: #e8efe9; --cream: #fafafa; --ink: #1e293b; --amber: #d99a45; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; color: var(--ink); background: var(--cream); font-family: var(--font-jakarta), sans-serif; }
+::selection { background: #d7e4da; }
+.container-shell { width: min(1160px, calc(100% - 40px)); margin: 0 auto; }
+.eyebrow { color: #527060; font-size: .72rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.grid-paper { background-image: linear-gradient(rgba(82,112,96,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(82,112,96,.07) 1px, transparent 1px); background-size: 34px 34px; }
+button, a { -webkit-tap-highlight-color: transparent; }
+@media (max-width: 640px) { .container-shell { width: min(100% - 28px, 1160px); } }
