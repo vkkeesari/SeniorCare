@@ -26,7 +26,8 @@ const systemInstruction = `You are a warm, gentle Care Advisor with Senior Care 
 Across the conversation, learn these fields gradually: moveFor (Self, Parent, Spouse, or Relative); medicalNeeds (reason for move and medical background such as falls, memory loss/dementia, or 24/7 care); adls (daily help such as bathing, medication, and mobility); timeline (Immediate/Hospital discharge, 1-3 months, or planning); budget ($3,000-$5,000, $5,000-$8,000, or $8,000+); name; phone; zip (target city or ZIP). Extract any details the user has already shared, even if phrased informally. Preserve previously learned information. If the user corrects a detail, use the correction. Ask next for the most useful missing field, one question only. Ask for contact details only after understanding care needs, timeline, and budget. When asking for phone, explain our care team will use it to follow up about care options. Mark isComplete true only when all eight fields are known. Return JSON only with exactly this shape: {"replyText":"...","extractedData":{"moveFor":"...","medicalNeeds":"...","adls":"...","timeline":"...","budget":"...","name":"...","phone":"...","zip":"..."},"isComplete":false}. Include only extractedData values that are known; do not invent details.`;
 
 const retryDelaysMs = [500, 1000, 2000];
-const fallbackModels = ['gemini-1.5-flash-8b', 'gemini-1.5-pro'];
+const primaryModel = 'gemini-2.5-flash';
+const fallbackModels = ['gemini-3.5-flash-lite'];
 const softFallbackResponse = {
   replyText: "I'm experiencing a brief delay right now. What city or ZIP code are you looking for care in?",
   extractedData: {},
@@ -84,16 +85,16 @@ export async function POST(request: Request) {
 
     let result;
     try {
-      result = await generateWithRetry(process.env.GEMINI_MODEL ?? 'gemini-1.5-flash');
+      result = await generateWithRetry(primaryModel);
     } catch (primaryError) {
-      if (getHttpStatus(primaryError) !== 503) throw primaryError;
+      if (![404, 503].includes(getHttpStatus(primaryError) ?? 0)) throw primaryError;
 
       for (const model of fallbackModels) {
         try {
           result = await generateWithRetry(model);
           break;
         } catch (fallbackError) {
-          if (getHttpStatus(fallbackError) !== 503) throw fallbackError;
+          if (![404, 503].includes(getHttpStatus(fallbackError) ?? 0)) throw fallbackError;
         }
       }
 
