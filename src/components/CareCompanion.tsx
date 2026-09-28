@@ -28,19 +28,6 @@ const replyOptions: Array<[keyof LeadFields, string[]]> = [
 ];
 const requiredFields: Array<keyof LeadFields> = ['moveFor', 'medicalNeeds', 'adls', 'timeline', 'budget', 'name', 'phone', 'zip'];
 
-function getInitialSession() {
-  try {
-    let id = sessionStorage.getItem('care-companion-session');
-    if (!id) {
-      id = crypto.randomUUID();
-      sessionStorage.setItem('care-companion-session', id);
-    }
-    return id;
-  } catch {
-    return crypto.randomUUID();
-  }
-}
-
 export default function CareCompanion() {
   const [sessionId, setSessionId] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([welcome]);
@@ -53,14 +40,7 @@ export default function CareCompanion() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const id = getInitialSession();
-    let storedMessages: ChatMessage[] | null = null;
-    try {
-      const stored = sessionStorage.getItem(`care-companion-messages:${id}`);
-      if (stored) storedMessages = JSON.parse(stored) as ChatMessage[];
-    } catch {
-      storedMessages = null;
-    }
+    const id = crypto.randomUUID();
     const openChat = () => {
       setExpanded(true);
       window.setTimeout(() => document.getElementById('care-chat-message')?.focus(), 50);
@@ -68,7 +48,6 @@ export default function CareCompanion() {
     window.addEventListener('open-care-chat', openChat);
     const frame = window.requestAnimationFrame(() => {
       setSessionId(id);
-      if (storedMessages) setMessages(storedMessages);
     });
     return () => {
       window.cancelAnimationFrame(frame);
@@ -78,13 +57,7 @@ export default function CareCompanion() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    if (!sessionId) return;
-    try {
-      sessionStorage.setItem(`care-companion-messages:${sessionId}`, JSON.stringify(messages.slice(-40)));
-    } catch {
-      // The active conversation remains usable if browser storage is unavailable.
-    }
-  }, [messages, sessionId]);
+  }, [messages]);
 
   const suggestions = useMemo(() => {
     const next = replyOptions.find(([field]) => !fields[field]);
