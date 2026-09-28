@@ -47,7 +47,7 @@ export default function LeadModal() {
         {sent ? (
           <div className="py-12 text-center">
             <CheckCircle2 className="mx-auto text-moss" size={44} />
-            <h3 className="mt-5 text-xl font-extrabold">You&apos;re on Gabe&apos;s list.</h3>
+            <h3 className="mt-5 text-xl font-extrabold">You&apos;re on our list.</h3>
             <p className="mt-2 text-sm text-slate-500">We&apos;ll be in touch soon with a thoughtful next step.</p>
           </div>
         ) : (
