@@ -25,6 +25,32 @@ const systemInstruction = `You are a warm, gentle Care Advisor with Senior Care 
 
 Across the conversation, learn these fields gradually: moveFor (Self, Parent, Spouse, or Relative); medicalNeeds (reason for move and medical background such as falls, memory loss/dementia, or 24/7 care); adls (daily help such as bathing, medication, and mobility); timeline (Immediate/Hospital discharge, 1-3 months, or planning); budget ($3,000-$5,000, $5,000-$8,000, or $8,000+); name; phone; zip (target city or ZIP). Extract any details the user has already shared, even if phrased informally. Preserve previously learned information. If the user corrects a detail, use the correction. Ask next for the most useful missing field, one question only. Ask for contact details only after understanding care needs, timeline, and budget. When asking for phone, explain our care team will use it to follow up about care options. Mark isComplete true only when all eight fields are known. Return JSON only with exactly this shape: {"replyText":"...","extractedData":{"moveFor":"...","medicalNeeds":"...","adls":"...","timeline":"...","budget":"...","name":"...","phone":"...","zip":"..."},"isComplete":false}. Include only extractedData values that are known; do not invent details.`;
 
+const retryDelaysMs = [500, 1000, 2000];
+const fallbackModels = ['gemini-1.5-flash-8b', 'gemini-1.5-pro'];
+const softFallbackResponse = {
+  replyText: "I'm experiencing a brief delay right now. What city or ZIP code are you looking for care in?",
+  extractedData: {},
+  isComplete: false,
+};
+
+function getHttpStatus(error: unknown) {
+  if (typeof error !== 'object' || error === null || !('status' in error)) return undefined;
+  const status = error.status;
+  return typeof status === 'number' ? status : undefined;
+}
+
+function isTransientError(error: unknown) {
+  const status = getHttpStatus(error);
+  if (status && [408, 429, 500, 502, 503, 504].includes(status)) return true;
+
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as { name?: unknown; code?: unknown; cause?: { code?: unknown } };
+  const code = candidate.code ?? candidate.cause?.code;
+  return candidate.name === 'AbortError' || (typeof code === 'string' && [
+    'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'ENETUNREACH', 'UND_ERR_CONNECT_TIMEOUT',
+  ].includes(code));
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -41,11 +67,39 @@ export async function POST(request: Request) {
       parts: [{ text }],
     }));
     conversation.push({ role: 'user', parts: [{ text: parsed.data.userMessage }] });
-    const result = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL ?? 'gemini-3.8-flash',
-      contents: conversation,
-      config: { systemInstruction, responseMimeType: 'application/json' },
-    });
+    const generateWithRetry = async (model: string) => {
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          return await ai.models.generateContent({
+            model,
+            contents: conversation,
+            config: { systemInstruction, responseMimeType: 'application/json' },
+          });
+        } catch (error) {
+          if (!isTransientError(error) || attempt >= retryDelaysMs.length) throw error;
+          await new Promise(resolve => setTimeout(resolve, retryDelaysMs[attempt]));
+        }
+      }
+    };
+
+    let result;
+    try {
+      result = await generateWithRetry(process.env.GEMINI_MODEL ?? 'gemini-1.5-flash');
+    } catch (primaryError) {
+      if (getHttpStatus(primaryError) !== 503) throw primaryError;
+
+      for (const model of fallbackModels) {
+        try {
+          result = await generateWithRetry(model);
+          break;
+        } catch (fallbackError) {
+          if (getHttpStatus(fallbackError) !== 503) throw fallbackError;
+        }
+      }
+
+      if (!result) return NextResponse.json(softFallbackResponse);
+    }
+
     const output = JSON.parse(result.text ?? '{}') as unknown;
     const response = z.object({
       replyText: z.string().min(1).max(500),
@@ -54,7 +108,10 @@ export async function POST(request: Request) {
     }).parse(output);
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Care chat request failed:', error);
-    return NextResponse.json({ error: 'I had trouble responding just now. Please try again in a moment.' }, { status: 502 });
+    console.error('Care chat provider request failed:', {
+      status: getHttpStatus(error),
+      transient: isTransientError(error),
+    });
+    return NextResponse.json(softFallbackResponse);
   }
 }
