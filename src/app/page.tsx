@@ -8,8 +8,8 @@ const careOptions = [
     title: 'Assisted Living',
     price: '$3,500 – $10,800 / month',
     description: 'A helping hand with daily routines, while keeping choice, comfort, and independence.',
-    image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=85',
-    alt: 'Caregiver sharing a warm conversation with an older adult',
+    image: 'https://images.unsplash.com/photo-1762955911431-4c44c7c3f408?auto=format&fit=crop&w=1200&q=85',
+    alt: 'Caregiver assisting an older couple with an activity',
   },
   {
     title: 'Adult Family Home',

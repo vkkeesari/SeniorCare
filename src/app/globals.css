@@ -13,3 +13,16 @@ body { margin: 0; color: var(--ink); background: var(--cream); font-family: "Tre
 .grid-paper { background-image: linear-gradient(rgba(82,112,96,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(82,112,96,.07) 1px, transparent 1px); background-size: 34px 34px; }
 button, a { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 640px) { .container-shell { width: min(100% - 28px, 1160px); } }
+@media (min-width: 1024px) {
+  .care-companion-desktop {
+    position: fixed;
+    z-index: 40;
+    top: 92px;
+    right: max(2rem, calc((100vw - 1560px) / 2 + 2rem));
+    display: block;
+    width: min(33vw, 550px);
+    min-width: 370px;
+    height: min(calc(100vh - 110px), 900px);
+    min-height: min(620px, calc(100vh - 110px));
+  }
+}

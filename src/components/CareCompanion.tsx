@@ -145,7 +145,8 @@ export default function CareCompanion() {
   );
 
   return <>
-    <div className="hidden h-[calc(100vh-110px)] min-h-[620px] max-h-[900px] lg:sticky lg:top-[92px] lg:block">{panel}</div>
+    <div aria-hidden="true" className="hidden h-[calc(100vh-110px)] min-h-[620px] max-h-[900px] lg:block" />
+    <div className="care-companion-desktop hidden">{panel}</div>
     <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
       {expanded ? <div className="h-[min(82dvh,760px)] px-2 pb-[max(env(safe-area-inset-bottom),8px)]">{panel}</div> : <button onClick={() => setExpanded(true)} className="mx-3 mb-[max(env(safe-area-inset-bottom),12px)] flex min-h-14 w-[calc(100%-24px)] items-center justify-between rounded-2xl bg-ink px-5 text-left text-white shadow-2xl"><span className="flex items-center gap-3"><MessageCircleHeart size={22} /><span><span className="block text-base font-extrabold">Open Care Companion</span><span className="block text-sm text-slate-200">A good first step, at your pace</span></span></span><X className="rotate-45" size={22} /></button>}
     </div>
