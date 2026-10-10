@@ -21,10 +21,9 @@ export default function Header() {
       <div className="container-shell flex h-[76px] items-center justify-between">
         <Link href="/" className="flex items-center gap-3" aria-label="NextHaven home">
           <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-[#304E43] shadow-sm">
-            <svg viewBox="0 0 52 52" className="h-7 w-7 text-[#F4F0E7]" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 32L26 16L37 32H15Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"/>
-              <path d="M9 36H43" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-              <path d="M26 10V4M22 12L26 8L30 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg viewBox="0 0 64 64" className="h-7 w-7" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M32 11L22 22H27L18 31H25L16 41H28V50H36V41H48L39 31H46L37 22H42L32 11Z" fill="#C3A46F"/>
+              <path d="M30 41H34V50H30V41Z" fill="#C3A46F"/>
             </svg>
           </span>
           <span className="leading-none">

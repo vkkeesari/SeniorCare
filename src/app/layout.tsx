@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   title: 'NextHaven | Senior Living Referral Services',
   description: 'Personalized guidance to help you find the right assisted living options for the people who matter most.',
   metadataBase: new URL(siteUrl),
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

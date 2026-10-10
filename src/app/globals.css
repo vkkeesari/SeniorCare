@@ -47,8 +47,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
     top: 92px;
     right: max(2rem, calc((100vw - 1560px) / 2 + 2rem));
     display: block;
-    width: min(33vw, 520px);
-    min-width: 360px;
+    width: min(28vw, 390px);
+    min-width: 300px;
     height: min(calc(100vh - 110px), 900px);
     min-height: min(620px, calc(100vh - 110px));
     box-shadow: var(--shadow-soft);
