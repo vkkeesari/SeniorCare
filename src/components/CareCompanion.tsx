@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, Check, MessageCircleHeart, Minimize2, X } from 'lucide-react';
+import { ArrowUp, Check, Maximize2, MessageCircleHeart, Minimize2, X } from 'lucide-react';
 import { upsertLeadData } from '@/lib/saveLead';
 
 type Sender = 'user' | 'bot';
@@ -35,6 +35,7 @@ export default function CareCompanion() {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [fullScreen, setFullScreen] = useState(false);
   const [error, setError] = useState('');
   const [saveWarning, setSaveWarning] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -116,28 +117,33 @@ export default function CareCompanion() {
   const complete = completeCount === requiredFields.length;
 
   const panel = (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-[#d9d2c8] bg-[#F4F0E7] shadow-soft">
+    <div className={`flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-[#d9d2c8] bg-[#F4F0E7] shadow-soft ${fullScreen ? 'h-full w-full' : 'h-full'}`}>
       <header className="flex items-center gap-3 border-b border-[#d9d2c8] bg-[#304E43] px-5 py-4 text-white">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#C3A46F] text-[#304E43]"><MessageCircleHeart size={21} /></span>
         <div className="min-w-0 flex-1"><h2 className="text-base font-extrabold">Care Companion</h2><p className="mt-0.5 text-sm text-[#F4F0E7]/80">A friendly local care guide</p></div>
-        <button className="grid h-11 w-11 place-items-center rounded-full text-white/90 hover:bg-white/10 lg:hidden" onClick={() => setExpanded(false)} aria-label="Minimize care companion"><Minimize2 size={20} /></button>
+        <div className="flex items-center gap-2">
+          <button className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10" onClick={() => setFullScreen(current => !current)} aria-label={fullScreen ? 'Exit full screen' : 'Expand care companion to full screen'}>
+            {fullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          </button>
+          <button className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10 lg:hidden" onClick={() => setExpanded(false)} aria-label="Minimize care companion"><Minimize2 size={18} /></button>
+        </div>
       </header>
       <div className="border-b border-[#d9d2c8] bg-[#f8f4ee] px-5 py-3" aria-label="Conversation progress">
         <div className="mb-2 flex items-center justify-between text-base"><span className="font-bold text-[#3A3530]">Your care picture</span><span className="text-[#3A3530]/70">{completeCount} of 8 details</span></div>
         <div className="h-2 overflow-hidden rounded-full bg-[#e7e1d5]"><div className="h-full rounded-full bg-[#304E43] transition-all" style={{ width: `${(completeCount / 8) * 100}%` }} /></div>
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto bg-[#f8f4ee] px-4 py-5 sm:px-5" aria-live="polite" aria-relevant="additions text">
-        {messages.map((message, index) => <div key={`${index}-${message.sender}`} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}><p className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-lg leading-7 ${message.sender === 'user' ? 'rounded-br-md bg-[#304E43] text-white' : 'rounded-bl-md bg-[#e6e1d7] text-[#3A3530]'}`}>{message.text}</p></div>)}
-        {busy && <div className="rounded-2xl rounded-bl-md bg-[#e6e1d7] px-4 py-3 text-base text-[#3A3530]" role="status">Your care companion is thinking…</div>}
-        {complete && <div className="flex items-center gap-2 rounded-xl bg-[#edf3ee] p-3 text-base font-semibold text-[#304E43]"><Check size={18} /> You&apos;ve shared what our care team needs to follow up thoughtfully.</div>}
+        {messages.map((message, index) => <div key={`${index}-${message.sender}`} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}><p className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[15px] leading-6 ${message.sender === 'user' ? 'rounded-br-md bg-[#304E43] text-white' : 'rounded-bl-md bg-[#e6e1d7] text-[#3A3530]'}`}>{message.text}</p></div>)}
+        {busy && <div className="rounded-2xl rounded-bl-md bg-[#e6e1d7] px-4 py-3 text-[15px] text-[#3A3530]" role="status">Your care companion is thinking…</div>}
+        {complete && <div className="flex items-center gap-2 rounded-xl bg-[#edf3ee] p-3 text-[15px] font-semibold text-[#304E43]"><Check size={18} /> You&apos;ve shared what our care team needs to follow up thoughtfully.</div>}
         <div ref={bottomRef} />
       </div>
-      {suggestions.length > 0 && !busy && <div className="flex gap-2 overflow-x-auto bg-[#f8f4ee] px-4 pb-3 sm:flex-wrap sm:overflow-visible sm:px-5" aria-label="Suggested replies">{suggestions.map(option => <button key={option} onClick={() => void sendMessage(option)} className="min-h-12 shrink-0 rounded-full border border-[#304E43]/25 bg-white px-4 text-base font-bold text-[#304E43] transition hover:bg-[#edf3ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#304E43]">{option}</button>)}</div>}
+      {suggestions.length > 0 && !busy && <div className="flex gap-2 overflow-x-auto bg-[#f8f4ee] px-4 pb-3 sm:flex-wrap sm:overflow-visible sm:px-5" aria-label="Suggested replies">{suggestions.map(option => <button key={option} onClick={() => void sendMessage(option)} className="min-h-10 shrink-0 rounded-full border border-[#304E43]/25 bg-white px-3 text-sm font-semibold text-[#304E43] transition hover:bg-[#edf3ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#304E43]">{option}</button>)}</div>}
       {saveWarning && <p className="px-5 pb-2 text-xs text-[#8b5b22]">Your message went through, but saving details needs Firebase configuration.</p>}
       {error && <p role="alert" className="px-5 pb-2 text-sm font-semibold text-red-700">{error}</p>}
       <form onSubmit={submit} className="flex items-center gap-2 border-t border-[#d9d2c8] bg-[#f8f4ee] p-3 sm:p-4">
         <label className="sr-only" htmlFor="care-chat-message">Write a message</label>
-        <input id="care-chat-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="Type or use a suggestion…" className="h-12 min-w-0 flex-1 rounded-2xl border border-[#d9d2c8] bg-white px-4 text-lg outline-none placeholder:text-[#3A3530]/50 focus:border-[#304E43] focus:ring-2 focus:ring-[#304E43]/15" maxLength={2000} />
+        <input id="care-chat-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="Type or use a suggestion…" className="h-12 min-w-0 flex-1 rounded-2xl border border-[#d9d2c8] bg-white px-4 text-base outline-none placeholder:text-[#3A3530]/50 focus:border-[#304E43] focus:ring-2 focus:ring-[#304E43]/15" maxLength={2000} />
         <button type="submit" disabled={!draft.trim() || busy || !sessionId} aria-label="Send message" className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#304E43] text-white transition hover:bg-[#263f38] disabled:cursor-not-allowed disabled:opacity-45"><ArrowUp size={21} /></button>
       </form>
       <p className="bg-[#f8f4ee] px-4 pb-3 text-center text-xs text-[#3A3530]/60">No cost to families. Your details are shared with our care team.</p>
@@ -146,9 +152,17 @@ export default function CareCompanion() {
 
   return <>
     <div aria-hidden="true" className="hidden h-[calc(100vh-110px)] min-h-[620px] max-h-[900px] lg:block" />
-    <div className="care-companion-desktop">{panel}</div>
-    <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
-      {expanded ? <div className="h-[min(82dvh,760px)] px-2 pb-[max(env(safe-area-inset-bottom),8px)]">{panel}</div> : <button onClick={() => setExpanded(true)} className="mx-3 mb-[max(env(safe-area-inset-bottom),12px)] flex min-h-14 w-[calc(100%-24px)] items-center justify-between rounded-2xl bg-ink px-5 text-left text-white shadow-2xl"><span className="flex items-center gap-3"><MessageCircleHeart size={22} /><span><span className="block text-base font-extrabold">Open Care Companion</span><span className="block text-sm text-slate-200">A good first step, at your pace</span></span></span><X className="rotate-45" size={22} /></button>}
-    </div>
+    {fullScreen ? (
+      <div className="fixed inset-3 z-[60] overflow-hidden rounded-[1.75rem] bg-[#F4F0E7] shadow-soft lg:inset-6">
+        {panel}
+      </div>
+    ) : (
+      <>
+        <div className="care-companion-desktop">{panel}</div>
+        <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
+          {expanded ? <div className="h-[min(82dvh,760px)] px-2 pb-[max(env(safe-area-inset-bottom),8px)]">{panel}</div> : <button onClick={() => setExpanded(true)} className="mx-3 mb-[max(env(safe-area-inset-bottom),12px)] flex min-h-14 w-[calc(100%-24px)] items-center justify-between rounded-2xl bg-ink px-5 text-left text-white shadow-2xl"><span className="flex items-center gap-3"><MessageCircleHeart size={22} /><span><span className="block text-base font-extrabold">Open Care Companion</span><span className="block text-sm text-slate-200">A good first step, at your pace</span></span></span><X className="rotate-45" size={22} /></button>}
+        </div>
+      </>
+    )}
   </>;
 }
