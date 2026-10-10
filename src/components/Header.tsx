@@ -4,7 +4,10 @@ import Link from 'next/link';
 import { ArrowRight, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
-const links = [['About Us', '/about'], ['Home', '/']];
+const links = [
+  ['About Us', '/about'],
+  ['Home', '/'],
+];
 
 function openCompanion() {
   window.dispatchEvent(new Event('open-care-chat'));
@@ -12,12 +15,70 @@ function openCompanion() {
 
 export default function Header() {
   const [open, setOpen] = useState(false);
-  return <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#fafafa]/95 backdrop-blur-md">
-    <div className="container-shell flex h-[76px] items-center justify-between">
-      <Link href="/" className="flex items-center gap-2" aria-label="Senior Care Advisory home"><span className="grid h-10 w-10 place-items-center rounded-xl bg-ink font-serif text-xl text-white">S</span><span className="text-[15px] font-extrabold tracking-tight">Senior Care <span className="font-normal text-moss">Advisory</span></span></Link>
-      <nav className="hidden items-center gap-7 md:flex">{links.map(([label, href]) => <Link key={href} href={href} className="text-sm font-semibold text-slate-600 transition hover:text-ink">{label}</Link>)}<button onClick={openCompanion} className="flex min-h-12 items-center gap-2 rounded-full bg-ink px-5 text-sm font-bold text-white transition hover:bg-moss">Get Advisory <ArrowRight size={16} /></button></nav>
-      <button aria-label={open ? 'Close navigation' : 'Open navigation'} onClick={() => setOpen(!open)} className="grid h-12 w-12 place-items-center rounded-full hover:bg-sage md:hidden">{open ? <X /> : <Menu />}</button>
-    </div>
-    {open && <nav className="border-t border-slate-200 bg-cream px-5 py-4 md:hidden">{links.map(([label, href]) => <Link onClick={() => setOpen(false)} key={href} href={href} className="block min-h-14 border-b border-slate-200 py-4 text-base font-semibold">{label}</Link>)}<button onClick={() => { setOpen(false); openCompanion(); }} className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 font-bold text-white">Get Advisory <ArrowRight size={17} /></button></nav>}
-  </header>;
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-[#d9d2c8] bg-[#F4F0E7]/95 backdrop-blur-md">
+      <div className="container-shell flex h-[76px] items-center justify-between">
+        <Link href="/" className="flex items-center gap-3" aria-label="NextHaven home">
+          <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-[#304E43] shadow-sm">
+            <svg viewBox="0 0 52 52" className="h-7 w-7 text-[#F4F0E7]" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 32L26 16L37 32H15Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"/>
+              <path d="M9 36H43" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M26 10V4M22 12L26 8L30 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <span className="leading-none">
+            <span className="block font-serif text-[1.55rem] tracking-tight text-[#304E43]">NextHaven</span>
+            <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-[#878E7A]">Senior Living Referral Services</span>
+          </span>
+        </Link>
+
+        <nav className="hidden items-center gap-7 md:flex">
+          {links.map(([label, href]) => (
+            <Link key={href} href={href} className="text-sm font-semibold text-[#3A3530] transition hover:text-[#304E43]">
+              {label}
+            </Link>
+          ))}
+          <button
+            onClick={openCompanion}
+            className="flex min-h-12 items-center gap-2 rounded-full bg-[#304E43] px-5 text-sm font-bold text-white transition hover:bg-[#263f38]"
+          >
+            Get Advisory <ArrowRight size={16} />
+          </button>
+        </nav>
+
+        <button
+          aria-label={open ? 'Close navigation' : 'Open navigation'}
+          onClick={() => setOpen(!open)}
+          className="grid h-12 w-12 place-items-center rounded-full hover:bg-[#e0dbc8] md:hidden"
+        >
+          {open ? <X /> : <Menu />}
+        </button>
+      </div>
+
+      {open && (
+        <nav className="border-t border-[#d9d2c8] bg-[#F4F0E7] px-5 py-4 md:hidden">
+          {links.map(([label, href]) => (
+            <Link
+              onClick={() => setOpen(false)}
+              key={href}
+              href={href}
+              className="block min-h-14 border-b border-[#e4ddd4] py-4 text-base font-semibold text-[#3A3530]"
+            >
+              {label}
+            </Link>
+          ))}
+          <button
+            onClick={() => {
+              setOpen(false);
+              openCompanion();
+            }}
+            className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-[#304E43] px-5 font-bold text-white"
+          >
+            Get Advisory <ArrowRight size={17} />
+          </button>
+        </nav>
+      )}
+    </header>
+  );
 }
