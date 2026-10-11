@@ -122,10 +122,10 @@ export default function CareCompanion() {
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#C3A46F] text-[#304E43]"><MessageCircleHeart size={21} /></span>
         <div className="min-w-0 flex-1"><h2 className="text-base font-extrabold">Care Companion</h2><p className="mt-0.5 text-sm text-[#F4F0E7]/80">A friendly local care guide</p></div>
         <div className="flex items-center gap-2">
-          <button className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10" onClick={() => setFullScreen(current => !current)} aria-label={fullScreen ? 'Exit full screen' : 'Expand care companion to full screen'}>
+          <button className="hidden h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10 lg:grid" onClick={() => setFullScreen(current => !current)} aria-label={fullScreen ? 'Exit full screen' : 'Expand care companion to full screen'}>
             {fullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </button>
-          <button className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10 lg:hidden" onClick={() => setExpanded(false)} aria-label="Minimize care companion"><Minimize2 size={18} /></button>
+          <button className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10 lg:hidden" onClick={() => { setExpanded(false); setFullScreen(false); }} aria-label="Close Care Companion"><X size={18} /></button>
         </div>
       </header>
       <div className="border-b border-[#d9d2c8] bg-[#f8f4ee] px-5 py-3" aria-label="Conversation progress">
@@ -153,14 +153,14 @@ export default function CareCompanion() {
   return <>
     <div aria-hidden="true" className="hidden h-[calc(100vh-110px)] min-h-[620px] max-h-[900px] lg:block" />
     {fullScreen ? (
-      <div className="fixed inset-3 z-[60] overflow-hidden rounded-[1.75rem] bg-[#F4F0E7] shadow-soft lg:inset-6">
+      <div className="fixed inset-x-3 bottom-4 top-24 z-[60] overflow-hidden rounded-[1.75rem] bg-[#F4F0E7] shadow-soft md:inset-x-8 md:bottom-8 lg:inset-x-auto lg:left-1/2 lg:top-24 lg:w-[min(90vw,1100px)] lg:-translate-x-1/2">
         {panel}
       </div>
     ) : (
       <>
         <div className="care-companion-desktop">{panel}</div>
         <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
-          {expanded ? <div className="h-[min(82dvh,760px)] px-2 pb-[max(env(safe-area-inset-bottom),8px)]">{panel}</div> : <button onClick={() => setExpanded(true)} className="mx-3 mb-[max(env(safe-area-inset-bottom),12px)] flex min-h-14 w-[calc(100%-24px)] items-center justify-between rounded-2xl bg-ink px-5 text-left text-white shadow-2xl"><span className="flex items-center gap-3"><MessageCircleHeart size={22} /><span><span className="block text-base font-extrabold">Open Care Companion</span><span className="block text-sm text-slate-200">A good first step, at your pace</span></span></span><X className="rotate-45" size={22} /></button>}
+          {expanded ? <div className="h-[min(72dvh,640px)] max-h-[calc(100dvh-6rem)] px-2 pb-[max(env(safe-area-inset-bottom),8px)]">{panel}</div> : <button onClick={() => setExpanded(true)} className="mx-3 mb-[max(env(safe-area-inset-bottom),12px)] flex min-h-14 w-[calc(100%-24px)] items-center justify-between rounded-2xl bg-ink px-5 text-left text-white shadow-2xl"><span className="flex items-center gap-3"><MessageCircleHeart size={22} /><span><span className="block text-base font-extrabold">Open Care Companion</span><span className="block text-sm text-slate-200">A good first step, at your pace</span></span></span><X className="rotate-45" size={22} /></button>}
         </div>
       </>
     )}
