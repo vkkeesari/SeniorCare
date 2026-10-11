@@ -117,8 +117,8 @@ export default function CareCompanion() {
   const complete = completeCount === requiredFields.length;
 
   const panel = (
-    <div className={`flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-[#d9d2c8] bg-[#F4F0E7] shadow-soft ${fullScreen ? 'h-full w-full' : 'h-full'}`}>
-      <header className="flex items-center gap-3 border-b border-[#d9d2c8] bg-[#304E43] px-5 py-4 text-white">
+    <div className={`flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border-2 border-[#304E43] bg-[#F4F0E7] shadow-soft ${fullScreen ? 'h-full w-full' : 'h-full'}`}>
+      <header className="flex items-center gap-3 border-b-2 border-[#C3A46F] bg-[#304E43] px-5 py-4 text-white">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#C3A46F] text-[#304E43]"><MessageCircleHeart size={21} /></span>
         <div className="min-w-0 flex-1"><h2 className="text-base font-extrabold">Care Companion</h2><p className="mt-0.5 text-sm text-[#F4F0E7]/80">A friendly local care guide</p></div>
         <div className="flex items-center gap-2">
