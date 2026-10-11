@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   description: 'Personalized guidance to help you find the right assisted living options for the people who matter most.',
   metadataBase: new URL(siteUrl),
   icons: {
-    icon: '/icon.png',
+    icon: '/NextHavenLogo.jpg',
   },
 };
 
