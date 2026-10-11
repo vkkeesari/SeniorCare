@@ -24,7 +24,7 @@ const replyOptions: Array<[keyof LeadFields, string[]]> = [
   ['medicalNeeds', ['Memory care needed', 'Recent falls', '24-hour support', 'Help after a hospital stay']],
   ['adls', ['Help with bathing', 'Medication reminders', 'Mobility support', 'A little help each day']],
   ['timeline', ['Immediate move-in', 'Within 1-3 months', 'Just planning ahead']],
-  ['budget', ['$3,000-$5,000', '$5,000-$8,000', '$8,000+']],
+  ['budget', ['$3,000-$5,000', '$5,000-$8,000', '$8,000+', 'Exploring Medicaid / Apple Health']],
 ];
 const requiredFields: Array<keyof LeadFields> = ['moveFor', 'medicalNeeds', 'adls', 'timeline', 'budget', 'name', 'phone', 'zip'];
 
