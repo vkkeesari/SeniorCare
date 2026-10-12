@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { ArrowUp, Check, Maximize2, MessageCircleHeart, Minimize2, X } from 'lucide-react';
 import { upsertLeadData } from '@/lib/saveLead';
 
@@ -16,21 +16,16 @@ type LeadFields = {
   phone?: string;
   zip?: string;
 };
-type ChatResponse = { replyText: string; extractedData: LeadFields; isComplete: boolean };
+type ChatResponse = { replyText: string; suggestedReplies: string[]; extractedData: LeadFields; isComplete: boolean };
 
 const welcome: ChatMessage = { sender: 'bot', text: "I'm glad you're here. Who are you looking for care for?" };
-const replyOptions: Array<[keyof LeadFields, string[]]> = [
-  ['moveFor', ['For myself', 'For my parent', 'For my spouse', 'For a relative']],
-  ['medicalNeeds', ['Memory care needed', 'Recent falls', '24-hour support', 'Help after a hospital stay']],
-  ['adls', ['Help with bathing', 'Medication reminders', 'Mobility support', 'A little help each day']],
-  ['timeline', ['Immediate move-in', 'Within 1-3 months', 'Just planning ahead']],
-  ['budget', ['$3,000-$5,000', '$5,000-$8,000', '$8,000+', 'Exploring Medicaid / Apple Health']],
-];
+const welcomeSuggestions = ['For myself', 'For my parent', 'For my spouse', 'For a relative'];
 const requiredFields: Array<keyof LeadFields> = ['moveFor', 'medicalNeeds', 'adls', 'timeline', 'budget', 'name', 'phone', 'zip'];
 
 export default function CareCompanion() {
   const [sessionId, setSessionId] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([welcome]);
+  const [suggestions, setSuggestions] = useState(welcomeSuggestions);
   const [fields, setFields] = useState<LeadFields>({});
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -60,15 +55,6 @@ export default function CareCompanion() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
 
-  const suggestions = useMemo(() => {
-    const next = replyOptions.find(([field]) => !fields[field]);
-    if (next) return next[1];
-    if (!fields.name) return [];
-    if (!fields.phone) return [];
-    if (!fields.zip) return [];
-    return [];
-  }, [fields]);
-
   const sendMessage = async (text: string) => {
     const cleanText = text.trim();
     if (!cleanText || busy || !sessionId) return;
@@ -95,6 +81,7 @@ export default function CareCompanion() {
       const merged = { ...fields, ...result.extractedData };
       setFields(merged);
       const botMessage: ChatMessage = { sender: 'bot', text: result.replyText };
+      setSuggestions(result.suggestedReplies);
       setMessages([...history, botMessage]);
       try {
         const saved = await upsertLeadData(sessionId, merged, botMessage);
@@ -138,7 +125,7 @@ export default function CareCompanion() {
         {complete && <div className="flex items-center gap-2 rounded-xl bg-[#edf3ee] p-3 text-[15px] font-semibold text-[#304E43]"><Check size={18} /> You&apos;ve shared what our care team needs to follow up thoughtfully.</div>}
         <div ref={bottomRef} />
       </div>
-      {suggestions.length > 0 && !busy && <div className="flex gap-2 overflow-x-auto bg-[#f8f4ee] px-4 pb-3 sm:flex-wrap sm:overflow-visible sm:px-5" aria-label="Suggested replies">{suggestions.map(option => <button key={option} onClick={() => void sendMessage(option)} className="min-h-10 shrink-0 rounded-full border border-[#304E43]/25 bg-white px-3 text-sm font-semibold text-[#304E43] transition hover:bg-[#edf3ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#304E43]">{option}</button>)}</div>}
+      {suggestions.length > 0 && !busy && !error && <div className="flex gap-2 overflow-x-auto bg-[#f8f4ee] px-4 pb-3 sm:flex-wrap sm:overflow-visible sm:px-5" aria-label="Suggested replies">{suggestions.map(option => <button key={option} onClick={() => void sendMessage(option)} className="min-h-10 shrink-0 rounded-full border border-[#304E43]/25 bg-white px-3 text-sm font-semibold text-[#304E43] transition hover:bg-[#edf3ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#304E43]">{option}</button>)}</div>}
       {saveWarning && <p className="px-5 pb-2 text-xs text-[#8b5b22]">Your message went through, but saving details needs Firebase configuration.</p>}
       {error && <p role="alert" className="px-5 pb-2 text-sm font-semibold text-red-700">{error}</p>}
       <form onSubmit={submit} className="flex items-center gap-2 border-t border-[#d9d2c8] bg-[#f8f4ee] p-3 sm:p-4">
