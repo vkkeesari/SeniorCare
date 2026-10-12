@@ -34,6 +34,7 @@ export default function CareCompanion() {
   const [error, setError] = useState('');
   const [saveWarning, setSaveWarning] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const desktopPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const id = crypto.randomUUID();
@@ -54,6 +55,36 @@ export default function CareCompanion() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
+
+  useEffect(() => {
+    let frame = 0;
+    const updateDesktopPosition = () => {
+      const panel = desktopPanelRef.current;
+      const footer = document.querySelector('footer');
+      if (!panel || !footer || window.innerWidth < 1024) return;
+
+      const defaultTop = 92;
+      const footerTop = footer.getBoundingClientRect().top;
+      const panelHeight = panel.offsetHeight;
+      const top = footerTop < defaultTop + panelHeight
+        ? Math.min(defaultTop, footerTop - panelHeight)
+        : defaultTop;
+      panel.style.top = `${top}px`;
+    };
+    const schedulePositionUpdate = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(updateDesktopPosition);
+    };
+
+    schedulePositionUpdate();
+    window.addEventListener('scroll', schedulePositionUpdate, { passive: true });
+    window.addEventListener('resize', schedulePositionUpdate);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedulePositionUpdate);
+      window.removeEventListener('resize', schedulePositionUpdate);
+    };
+  }, [fullScreen]);
 
   const sendMessage = async (text: string) => {
     const cleanText = text.trim();
@@ -145,7 +176,7 @@ export default function CareCompanion() {
       </div>
     ) : (
       <>
-        <div className="care-companion-desktop">{panel}</div>
+        <div ref={desktopPanelRef} className="care-companion-desktop">{panel}</div>
         <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
           {expanded ? <div className="h-[min(72dvh,640px)] max-h-[calc(100dvh-6rem)] px-2 pb-[max(env(safe-area-inset-bottom),8px)]">{panel}</div> : <button onClick={() => setExpanded(true)} className="mx-3 mb-[max(env(safe-area-inset-bottom),12px)] flex min-h-14 w-[calc(100%-24px)] items-center justify-between rounded-2xl bg-ink px-5 text-left text-white shadow-2xl"><span className="flex items-center gap-3"><MessageCircleHeart size={22} /><span><span className="block text-base font-extrabold">Open Care Companion</span><span className="block text-sm text-slate-200">A good first step, at your pace</span></span></span><X className="rotate-45" size={22} /></button>}
         </div>
