@@ -3,6 +3,7 @@ import { ArrowRight, HeartHandshake, MapPin, ShieldCheck } from 'lucide-react';
 import CareCostCalculator from '@/components/CareCostCalculator';
 import OpenCareChatButton from '@/components/OpenCareChatButton';
 import NextHavenLogo from './NextHavenLogo.jpg';
+import LandingPageImage from './landing-page-image.jpg';
 
 const careOptions = [
   {
@@ -46,13 +47,14 @@ const sampleReviews = [
 export default function Home() {
   return (
     <>
-      <section className="relative isolate overflow-hidden rounded-[2rem] border border-[#C3A46F]/50 bg-[#304E43] px-6 py-12 text-[#F4F0E7] shadow-soft sm:px-10 sm:py-16 lg:px-14 lg:py-20">
-        <div className="absolute -right-20 -top-24 -z-10 h-80 w-80 rounded-full bg-[#C3A46F]/15 blur-2xl" />
+      <section className="relative isolate overflow-hidden rounded-[2rem] border border-[#C3A46F]/50 px-6 py-12 text-[#F4F0E7] shadow-soft sm:px-10 sm:py-16 lg:px-14 lg:py-20">
+        <Image src={LandingPageImage} alt="" fill priority sizes="100vw" className="object-cover" />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#182D26]/75 via-[#304E43]/40 to-[#304E43]/15" />
         <svg aria-hidden="true" className="pointer-events-none absolute -right-4 top-3 h-40 w-40 text-[#C3A46F]/30 sm:right-8 sm:top-6 sm:h-56 sm:w-56" viewBox="0 0 200 200" fill="none">
           <path d="M100 174c-2-26 1-49 15-72 13-22 31-35 49-48M105 145c-23-2-39-13-48-34 22 1 39 11 48 34Zm20-45c-22-9-32-26-31-49 20 9 31 25 31 49Z" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M155 44c5 13 0 26-12 31-12-5-17-18-12-31 6-12 18-12 24 0Zm-36 23c-3 14-14 22-27 18-8-10-5-24 6-32 12-7 22 0 21 14Zm50 16c-11 10-25 10-34-1-1-13 9-23 23-24 14 1 19 13 11 25Zm-14 39c-14 3-26-4-28-18 6-12 20-16 32-9 11 9 10 21-4 27Z" fill="currentColor" />
         </svg>
-        <div className="relative max-w-3xl">
+        <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-4">
             <Image src={NextHavenLogo} alt="NextHaven tree, winding path, and mountain logo" width={180} height={104} priority className="h-24 w-40 rounded-xl object-cover sm:h-28 sm:w-48" />
             <div>
@@ -60,11 +62,10 @@ export default function Home() {
               <p className="mt-2 max-w-[15rem] text-sm font-semibold leading-5 text-[#C3A46F]">Guiding Families to Brighter Tomorrows</p>
             </div>
           </div>
-          <div className="relative mt-6 max-w-2xl rounded-[2rem] rounded-bl-md border border-[#C3A46F]/50 bg-[#F4F0E7] px-6 py-7 text-[#3A3530] shadow-soft sm:px-9 sm:py-9">
-            <span className="absolute -bottom-3 left-8 h-6 w-6 rotate-45 border-b border-l border-[#C3A46F]/50 bg-[#F4F0E7]" />
-            <h1 className="relative font-serif text-4xl leading-[1.08] text-[#304E43] sm:text-6xl">HAVE A CONVERSATION TODAY</h1>
-            <p className="relative mt-5 max-w-xl text-base leading-7 text-[#3A3530]/80">Personalized guidance to help you find the right assisted living options for the people who matter most.</p>
-            <OpenCareChatButton className="relative mt-7 flex min-h-14 items-center gap-3 rounded-full bg-[#304E43] px-6 font-bold text-[#F4F0E7] transition hover:bg-[#3d6657] active:bg-[#263f38]">Start a conversation <ArrowRight size={17} /></OpenCareChatButton>
+          <div className="mt-8 max-w-2xl">
+            <h1 className="font-serif text-4xl leading-[1.08] text-[#F4F0E7] drop-shadow sm:text-6xl">HAVE A CONVERSATION TODAY</h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-white drop-shadow">Personalized guidance to help you find the right assisted living options for the people who matter most.</p>
+            <OpenCareChatButton className="mt-7 flex min-h-14 items-center gap-3 rounded-full bg-[#304E43] px-6 font-bold text-[#F4F0E7] transition hover:bg-[#3d6657] active:bg-[#263f38]">Start a conversation <ArrowRight size={17} /></OpenCareChatButton>
           </div>
           <div className="mt-8 flex flex-wrap gap-3 text-xs font-extrabold tracking-[0.16em] text-[#304E43]">
             {['PERSONAL', 'TRUSTED', 'LOCAL'].map(value => <span key={value} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#C3A46F] bg-[#C3A46F] px-4"><ShieldCheck size={15} aria-hidden="true" />{value}</span>)}
