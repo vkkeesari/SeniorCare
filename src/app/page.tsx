@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import { ArrowRight, HeartHandshake, MapPin, ShieldCheck } from 'lucide-react';
 import CareCostCalculator from '@/components/CareCostCalculator';
@@ -48,6 +49,10 @@ const sampleReviews = [
     attribution: 'A family near Liberty Lake',
   },
 ];
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 export default function Home() {
   return (
