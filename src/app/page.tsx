@@ -47,7 +47,7 @@ const sampleReviews = [
 export default function Home() {
   return (
     <>
-      <section className="relative isolate overflow-hidden rounded-[2rem] border border-[#C3A46F]/50 px-6 py-12 text-[#F4F0E7] shadow-soft sm:px-10 sm:py-16 lg:px-14 lg:py-20">
+      <section className="home-hero relative isolate flex flex-col justify-center overflow-hidden px-6 py-12 text-[#F4F0E7] sm:px-10 sm:py-16 lg:px-14 lg:py-20">
         <Image src={LandingPageImage} alt="" fill priority sizes="100vw" className="object-cover" />
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#182D26]/75 via-[#304E43]/40 to-[#304E43]/15" />
         <svg aria-hidden="true" className="pointer-events-none absolute -right-4 top-3 h-40 w-40 text-[#C3A46F]/30 sm:right-8 sm:top-6 sm:h-56 sm:w-56" viewBox="0 0 200 200" fill="none">

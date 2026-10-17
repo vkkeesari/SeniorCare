@@ -29,6 +29,11 @@ body {
   text-transform: uppercase;
 }
 .font-serif { font-family: var(--font-playfair), Georgia, serif; }
+.home-hero {
+  width: calc(100% + 2rem);
+  min-height: calc(100dvh - 76px);
+  margin: -1.25rem -1rem 0;
+}
 .grid-paper {
   background-image: linear-gradient(rgba(48, 78, 67, 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgba(48, 78, 67, 0.06) 1px, transparent 1px);
@@ -40,7 +45,24 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .container-shell { width: min(100% - 28px, 1160px); }
 }
 
+@media (min-width: 640px) {
+  .home-hero {
+    width: calc(100% + 3rem);
+    margin-right: -1.5rem;
+    margin-left: -1.5rem;
+  }
+}
+
 @media (min-width: 1024px) {
+  .home-hero {
+    --home-hero-bleed: max(0px, calc((100vw - 1560px) / 2));
+    width: calc(100% + var(--home-hero-bleed) + 2rem);
+    margin-top: -2rem;
+    margin-right: 0;
+    margin-left: calc(-1 * (var(--home-hero-bleed) + 2rem));
+    border-radius: 0;
+  }
+
   .care-companion-desktop {
     position: fixed;
     z-index: 40;
