@@ -121,7 +121,12 @@ export default function CareCompanion() {
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto bg-[#f8f4ee] px-4 py-5 sm:px-5" aria-live="polite" aria-relevant="additions text">
         {messages.map((message, index) => <div key={`${index}-${message.sender}`} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}><p className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[15px] leading-6 ${message.sender === 'user' ? 'rounded-br-md bg-[#F4F0E7] text-[#304E43]' : 'rounded-bl-md bg-[#e6e1d7] text-[#3A3530]'}`}>{message.text}</p></div>)}
-        {busy && <div className="rounded-2xl rounded-bl-md bg-[#e6e1d7] px-4 py-3 text-[15px] text-[#3A3530]" role="status">Your care companion is typing...</div>}
+        {busy && <div className="flex w-fit items-center gap-1.5 rounded-2xl rounded-bl-md bg-[#e6e1d7] px-4 py-3" role="status" aria-label="Care Companion is typing">
+          <span className="sr-only">Care Companion is typing</span>
+          <span aria-hidden="true" className="h-2 w-2 animate-bounce rounded-full bg-[#304E43]" />
+          <span aria-hidden="true" className="h-2 w-2 animate-bounce rounded-full bg-[#304E43] [animation-delay:150ms]" />
+          <span aria-hidden="true" className="h-2 w-2 animate-bounce rounded-full bg-[#304E43] [animation-delay:300ms]" />
+        </div>}
         {complete && <div className="flex items-center gap-2 rounded-xl bg-[#edf3ee] p-3 text-[15px] font-semibold text-[#304E43]"><Check size={18} /> You&apos;ve shared what our care team needs to follow up thoughtfully.</div>}
         <div ref={bottomRef} />
       </div>
