@@ -4,6 +4,7 @@ import CareCostCalculator from '@/components/CareCostCalculator';
 import OpenCareChatButton from '@/components/OpenCareChatButton';
 import NextHavenLogo from './NextHavenLogo.jpg';
 import LandingPageImage from './landing-page-image.jpg';
+import SkilledNursingImage from './skilled-nursing.jpg';
 
 const careOptions = [
   {
@@ -24,8 +25,8 @@ const careOptions = [
     title: 'Skilled Nursing',
     price: '$9,500 – $16,700 / month',
     description: 'Around-the-clock clinical care and recovery support when needs are more complex.',
-    image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=85',
-    alt: 'Skilled nursing care professional supporting a patient in a clinical home-like setting',
+    image: SkilledNursingImage,
+    alt: 'Skilled nursing care setting',
   },
 ];
 
@@ -41,6 +42,10 @@ const sampleReviews = [
   {
     quote: 'We finally had a clear starting point and a calm place to talk through what would work best for Mom.',
     attribution: 'A family in the Spokane area',
+  },
+  {
+    quote: 'Having someone explain the choices without pressure helped us feel ready to take the next step together.',
+    attribution: 'A family near Liberty Lake',
   },
 ];
 
@@ -84,11 +89,11 @@ export default function Home() {
           </div>
           <OpenCareChatButton className="flex min-h-12 items-center gap-2 font-bold text-[#F4F0E7]">Ask which may fit <ArrowRight size={17} /></OpenCareChatButton>
         </div>
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 2xl:grid-cols-3">
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {careOptions.map(option => (
             <article key={option.title} className="overflow-hidden rounded-[1.6rem] border border-[#C3A46F]/50 bg-[#F4F0E7] text-[#304E43] shadow-soft transition hover:-translate-y-1 hover:border-[#C3A46F]">
               <div className="relative h-52 sm:h-56">
-                <Image src={option.image} alt={option.alt} fill sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" />
+                <Image src={option.image} alt={option.alt} fill sizes="(max-width: 640px) 100vw, (max-width: 1023px) 50vw, 33vw" className="object-cover" />
               </div>
               <div className="p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3">
@@ -110,7 +115,7 @@ export default function Home() {
           <p className="eyebrow text-[#C3A46F]">A little reassurance goes a long way</p>
           <h2 id="family-reviews" className="mt-3 font-serif text-3xl leading-tight text-[#304E43] sm:text-4xl">What Spokane Families Are Saying</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#304E43]/75">Sample family reflections — shared here as illustrative examples.</p>
-          <div className="mt-6 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
             {sampleReviews.map(review => (
               <figure key={review.attribution} className="rounded-2xl border border-[#C3A46F]/30 bg-[#E7E1D5] p-5 text-[#304E43] shadow-soft">
                 <div className="flex gap-1 text-[#C3A46F]" aria-label="5 out of 5 stars">★★★★★</div>
