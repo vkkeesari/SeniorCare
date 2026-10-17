@@ -5,15 +5,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        forest: '#304E43',
+        forest: '#F4F0E7',
         gold: '#C3A46F',
-        ivory: '#F4F0E7',
+        ivory: '#304E43',
         sage: '#878E7A',
         espresso: '#3A3530',
         ink: '#3A3530',
-        cream: '#F4F0E7',
+        cream: '#304E43',
         amber: '#C3A46F',
-        moss: '#304E43',
+        moss: '#F4F0E7',
       },
       fontFamily: {
         sans: ['var(--font-montserrat)', 'sans-serif'],
