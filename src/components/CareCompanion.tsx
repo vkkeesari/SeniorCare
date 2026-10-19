@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { ArrowUp, Check, Maximize2, MessageCircleHeart, Minimize2, X } from 'lucide-react';
 import { upsertLeadData } from '@/lib/saveLead';
+import { isSupportedSpokaneZip } from '@/lib/spokaneServiceArea';
 
 type Sender = 'user' | 'bot';
 type ChatMessage = { sender: Sender; text: string };
@@ -16,7 +17,7 @@ type LeadFields = {
   phone?: string;
   zip?: string;
 };
-type ChatResponse = { replyText: string; suggestedReplies: string[]; extractedData: LeadFields; isComplete: boolean };
+type ChatResponse = { replyText: string; suggestedReplies: string[]; extractedData: LeadFields; isComplete: boolean; zipCorrectionRequired: boolean };
 
 const welcome: ChatMessage = { sender: 'bot', text: "I'm glad you're here. Who are you looking for care for?" };
 const welcomeSuggestions = ['For myself', 'For my parent', 'For my spouse', 'For a relative'];
@@ -27,6 +28,7 @@ export default function CareCompanion() {
   const [messages, setMessages] = useState<ChatMessage[]>([welcome]);
   const [suggestions, setSuggestions] = useState(welcomeSuggestions);
   const [fields, setFields] = useState<LeadFields>({});
+  const [isComplete, setIsComplete] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -65,12 +67,6 @@ export default function CareCompanion() {
     setBusy(true);
     setError('');
     try {
-      try {
-        const saved = await upsertLeadData(sessionId, fields, userMessage);
-        if (!saved.saved) setSaveWarning(true);
-      } catch {
-        setSaveWarning(true);
-      }
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,15 +75,20 @@ export default function CareCompanion() {
       const result = await response.json() as ChatResponse | { error?: string };
       if (!response.ok || !('replyText' in result)) throw new Error(('error' in result && result.error) || 'Please try sending that again.');
       const merged = { ...fields, ...result.extractedData };
+      if (result.zipCorrectionRequired) merged.zip = undefined;
       setFields(merged);
+      setIsComplete(result.isComplete && isSupportedSpokaneZip(merged.zip));
       const botMessage: ChatMessage = { sender: 'bot', text: result.replyText };
       setSuggestions(result.suggestedReplies);
       setMessages([...history, botMessage]);
-      try {
-        const saved = await upsertLeadData(sessionId, merged, botMessage);
-        if (!saved.saved) setSaveWarning(true);
-      } catch {
-        setSaveWarning(true);
+
+      if (!result.zipCorrectionRequired) {
+        try {
+          const saved = await upsertLeadData(sessionId, merged, botMessage);
+          if (!saved.saved) setSaveWarning(true);
+        } catch {
+          setSaveWarning(true);
+        }
       }
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : 'Please try again in a moment.');
@@ -101,7 +102,9 @@ export default function CareCompanion() {
     void sendMessage(draft);
   };
   const completeCount = requiredFields.filter(field => Boolean(fields[field])).length;
-  const complete = completeCount === requiredFields.length;
+  const complete = isComplete
+    && completeCount === requiredFields.length
+    && isSupportedSpokaneZip(fields.zip);
 
   const panel = (
     <div className={`flex min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F4F0E7] shadow-none ${fullScreen ? 'h-full w-full' : 'h-full'}`}>

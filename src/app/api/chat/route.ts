@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { isSupportedSpokaneZip, spokaneServiceZipCodes } from '@/lib/spokaneServiceArea';
 
 export const runtime = 'nodejs';
 
@@ -29,7 +30,7 @@ When users ask about payment methods, affordability, or budget, mention that Nex
 
 When asking about monthly budget, ask whether the family has a private-pay range ($3,000-$5,000, $5,000-$8,000, or $8,000+) or would like to explore Medicaid/state assistance such as WA Apple Health. Accept Medicaid/state assistance as a valid budget response and record it in the budget field.
 
-Our primary Spokane service ZIP codes are 99201 (Downtown Spokane), 99224 (West Spokane), 99203 (South Hill), 99223 (South Hill/Moran Prairie), 99208 (North Spokane), 99205 (Northwest Spokane), 99206 (Spokane Valley), 99212 (Spokane Valley), 99216 (Spokane Valley), and 99037 (Liberty Lake). When the user provides a ZIP in this list, confirm that our local care team services that exact Spokane-area neighborhood/area and offer relevant care pricing context based on their needs. When the user provides a ZIP outside this list, gently explain that our primary network focuses on greater Spokane, while our advisors can still help look up resources in the user's region; do not imply that the ZIP is in the primary service network or invent local pricing.
+Our primary Spokane service ZIP codes are 99201 (Downtown Spokane), 99224 (West Spokane), 99203 (South Hill), 99223 (South Hill/Moran Prairie), 99208 (North Spokane), 99205 (Northwest Spokane), 99206 (Spokane Valley), 99212 (Spokane Valley), 99216 (Spokane Valley), and 99037 (Liberty Lake). When the user provides a ZIP in this list, confirm that our local care team services that exact Spokane-area neighborhood/area and offer relevant care pricing context based on their needs. When the user provides a ZIP outside this list, gently explain that our primary network focuses on greater Spokane, while our advisors can still help look up resources in the user's region; do not imply that the ZIP is in the primary service network or invent local pricing. If a ZIP is outside the approved list, do not extract it as the zip field and do not mark the lead complete. Ask the user for a supported ZIP instead, with concise suggestions from this list: ${spokaneServiceZipCodes.join(', ')}. If the user later provides a supported ZIP, use it in place of any previously rejected ZIP and continue the flow.
 
 Across the conversation, learn these fields gradually: moveFor (Self, Parent, Spouse, or Relative); medicalNeeds (reason for move and medical background such as falls, memory loss/dementia, or 24/7 care); adls (daily help such as bathing, medication, and mobility); timeline (Immediate/Hospital discharge, 1-3 months, or planning); budget ($3,000-$5,000, $5,000-$8,000, or $8,000+); name; phone; zip (target city or ZIP). Extract any details the user has already shared, even if phrased informally. Preserve previously learned information. If the user corrects a detail, use the correction. Ask next for the most useful missing field, one question only. Ask for contact details only after understanding care needs, timeline, and budget. When asking for phone, explain our care team will use it to follow up about care options. If a user asks an unrelated question, answer it briefly and respectfully when appropriate, then return to the care conversation with one natural follow-up question for the next useful missing field. Suggestions must always match the reply: every suggested reply must be a concise, plausible direct answer to the single follow-up question in replyText. Do not show generic care-intake choices after answering an unrelated question unless they answer that explicit question. If the follow-up is open-ended (for example, asking for a name, phone number, or ZIP), use an empty suggestedReplies array rather than mismatched choices. Mark isComplete true only when all eight fields are known. Return JSON only with exactly this shape: {"replyText":"...","suggestedReplies":["..."],"extractedData":{"moveFor":"...","medicalNeeds":"...","adls":"...","timeline":"...","budget":"...","name":"...","phone":"...","zip":"..."},"isComplete":false}. Include only extractedData values that are known; do not invent details.`;
 
@@ -41,7 +42,29 @@ const softFallbackResponse = {
   suggestedReplies: [],
   extractedData: {},
   isComplete: false,
+  zipCorrectionRequired: false,
 };
+
+function getLatestZipCandidate(messageHistory: Array<{ sender: 'user' | 'bot'; text: string }>, userMessage: string) {
+  const standaloneZip = /^\d{5,}(?:-\d{4})?$/.test(userMessage)
+    ? userMessage
+    : undefined;
+  if (standaloneZip) return standaloneZip;
+
+  const latestBotMessage = messageHistory.at(-1);
+  if (latestBotMessage?.sender !== 'bot' || !/\b(zip|postal code)\b/i.test(latestBotMessage.text)) return undefined;
+  return userMessage.match(/\b\d{5,}(?:-\d{4})?\b/)?.[0];
+}
+
+function zipCorrectionResponse(extractedData: z.infer<typeof extractedDataSchema> = {}) {
+  return {
+    replyText: 'That ZIP code is outside our primary Spokane service area. Could you share a ZIP code from our Spokane network instead?',
+    suggestedReplies: spokaneServiceZipCodes.slice(0, 4),
+    extractedData: { ...extractedData, zip: undefined },
+    isComplete: false,
+    zipCorrectionRequired: true,
+  };
+}
 
 function getHttpStatus(error: unknown) {
   if (typeof error !== 'object' || error === null || !('status' in error)) return undefined;
@@ -62,13 +85,18 @@ function isTransientError(error: unknown) {
 }
 
 export async function POST(request: Request) {
+  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: 'Please send a valid chat message.' }, { status: 400 });
+
+  const latestZip = getLatestZipCandidate(parsed.data.messageHistory, parsed.data.userMessage);
+  if (latestZip && !isSupportedSpokaneZip(latestZip)) {
+    return NextResponse.json(zipCorrectionResponse());
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'Chat is not configured yet. Please set GEMINI_API_KEY on the hosting environment.' }, { status: 503 });
   }
-
-  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: 'Please send a valid chat message.' }, { status: 400 });
 
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -117,7 +145,23 @@ export async function POST(request: Request) {
       extractedData: extractedDataSchema,
       isComplete: z.boolean(),
     }).parse(output);
-    return NextResponse.json(response);
+
+    const extractedZip = response.extractedData.zip?.trim();
+    const zipToValidate = latestZip ?? extractedZip;
+
+    if (zipToValidate && !isSupportedSpokaneZip(zipToValidate)) {
+      return NextResponse.json(zipCorrectionResponse(response.extractedData));
+    }
+
+    const extractedData = latestZip
+      ? { ...response.extractedData, zip: latestZip }
+      : response.extractedData;
+    return NextResponse.json({
+      ...response,
+      extractedData,
+      isComplete: response.isComplete && isSupportedSpokaneZip(extractedData.zip),
+      zipCorrectionRequired: false,
+    });
   } catch (error) {
     console.error('Care chat provider request failed:', {
       status: getHttpStatus(error),
