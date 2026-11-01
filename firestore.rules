@@ -28,10 +28,8 @@ service cloud.firestore {
         && data.careDetails.keys().hasOnly(['careType', 'timeframe', 'zipCode', 'budget'])
         && data.careDetails.careType is string
         && data.careDetails.timeframe is string
-        && data.careDetails.zipCode in [
-          '99201', '99224', '99203', '99223', '99208',
-          '99205', '99206', '99212', '99216', '99037'
-        ]
+        && data.careDetails.zipCode is string
+        && data.careDetails.zipCode.matches('^[0-9]{5}(-[0-9]{4})?$')
         && data.careDetails.budget is string
         && data.additionalServices is map
         && data.additionalServices.keys().hasAll(['interestedInMoving'])

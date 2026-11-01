@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { isSupportedSpokaneZip, spokaneServiceZipCodes } from '@/lib/spokaneServiceArea';
+import { isSupportedSpokaneZip, isValidZipCode, spokaneServiceZipCodes } from '@/lib/spokaneServiceArea';
 
 export const runtime = 'nodejs';
 
@@ -42,24 +42,32 @@ Across the conversation, learn these fields gradually: moveFor (Self, Parent, Sp
 const retryDelaysMs = [500, 1000, 2000];
 const primaryModel = 'gemini-2.5-flash';
 const fallbackModels = ['gemini-3.5-flash-lite'];
+const zipPolicyInstruction = `ZIP POLICY OVERRIDE: A valid ZIP code is any five-digit ZIP or ZIP+4, whether or not it is in our Spokane service area. Record every valid ZIP exactly as provided. Never reject, erase, or ask the user to replace a valid out-of-area ZIP with a Spokane ZIP. If a valid ZIP is outside our primary service ZIP list, briefly say "We don't primarily serve that area, but I'll note the ZIP and help you explore resources." Then continue with the next missing intake question. Ask for a ZIP before contact details only when no valid ZIP has been provided. A phone number is not a ZIP: never interpret a 7-, 10-, or 11-digit number as a ZIP.`;
 
-function getLatestZipCandidate(userMessage: string) {
-  const standaloneZip = /^\d{5,}(?:-\d{4})?$/.test(userMessage)
-    ? userMessage
+function getZipFromMessage(userMessage: string) {
+  const standaloneZip = /^\s*\d{5}(?:-\d{4})?\s*$/.test(userMessage)
+    ? userMessage.trim()
     : undefined;
   if (standaloneZip) return standaloneZip;
 
-  return userMessage.match(/\b\d{5}(?:-\d{4})?\b/)?.[0];
+  return userMessage.match(/\b(?:zip(?:\s*code)?|postal code)\s*(?:is|:|#)?\s*(\d{5}(?:-\d{4})?)\b/i)?.[1]
+    ?? userMessage.match(/\b(?:in|at|near)\s+(\d{5})\b/i)?.[1];
 }
 
-function zipCorrectionResponse(extractedData: z.infer<typeof extractedDataSchema> = {}) {
-  return {
-    replyText: 'That ZIP code is outside our primary Spokane service area. Could you share a ZIP code from our Spokane network instead?',
-    suggestedReplies: spokaneServiceZipCodes.slice(0, 4),
-    extractedData: { ...extractedData, zip: undefined },
-    isComplete: false,
-    zipCorrectionRequired: true,
-  };
+function getLatestZipCandidate(
+  messageHistory: Array<{ sender: 'user' | 'bot'; text: string }>,
+  userMessage: string,
+) {
+  const currentZip = getZipFromMessage(userMessage);
+  if (currentZip) return { currentZip, zip: currentZip };
+
+  const previousZip = messageHistory
+    .filter(message => message.sender === 'user')
+    .reverse()
+    .map(message => getZipFromMessage(message.text))
+    .find((zip): zip is string => Boolean(zip));
+
+  return { currentZip: undefined, zip: previousZip };
 }
 
 function getHttpStatus(error: unknown) {
@@ -91,11 +99,10 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(requestBody);
   if (!parsed.success) return NextResponse.json({ error: 'Please send a valid chat message.' }, { status: 400 });
 
-  const latestZip = getLatestZipCandidate(parsed.data.userMessage);
-  if (latestZip && !isSupportedSpokaneZip(latestZip)) {
-    return NextResponse.json(zipCorrectionResponse());
-  }
-
+  const { currentZip, zip: latestZip } = getLatestZipCandidate(
+    parsed.data.messageHistory,
+    parsed.data.userMessage,
+  );
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'Chat is not configured yet. Please set GEMINI_API_KEY on the hosting environment.' }, { status: 503 });
@@ -114,7 +121,10 @@ export async function POST(request: Request) {
           return await ai.models.generateContent({
             model,
             contents: conversation,
-            config: { systemInstruction, responseMimeType: 'application/json' },
+            config: {
+              systemInstruction: `${systemInstruction}\n\n${zipPolicyInstruction}`,
+              responseMimeType: 'application/json',
+            },
           });
         } catch (error) {
           if (!isTransientError(error) || attempt >= retryDelaysMs.length) throw error;
@@ -171,17 +181,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const extractedZip = response.data.extractedData.zip?.trim();
-    const zipToValidate = latestZip ?? extractedZip;
-
-    if (zipToValidate && !isSupportedSpokaneZip(zipToValidate)) {
-      return NextResponse.json(zipCorrectionResponse());
-    }
-
-    const extractedData = latestZip
-      ? { ...response.data.extractedData, zip: latestZip }
-      : response.data.extractedData;
-    const hasSupportedZip = isSupportedSpokaneZip(extractedData.zip);
+    const extractedData = {
+      ...response.data.extractedData,
+      zip: latestZip,
+    };
+    if (!isValidZipCode(extractedData.zip)) extractedData.zip = undefined;
+    const hasValidZip = isValidZipCode(extractedData.zip);
+    const hasSupportedZip = hasValidZip && isSupportedSpokaneZip(extractedData.zip);
     const hasCareProfile = [
       extractedData.moveFor,
       extractedData.medicalNeeds,
@@ -190,8 +196,8 @@ export async function POST(request: Request) {
       extractedData.budget,
     ].every(value => typeof value === 'string' && value.trim().length > 0);
     const asksForContactDetails = /\b(name|phone|phone number|contact details|email address)\b|(?:best|good|preferred) (?:number|way) to (?:reach|contact)|how (?:can|may) (?:we|our team) (?:reach|contact|call)|(?:what|which) number.*\b(call|reach|contact)\b/i.test(response.data.replyText);
-    const mustAskForZip = !hasSupportedZip && (hasCareProfile || asksForContactDetails);
-    const safeExtractedData = hasSupportedZip
+    const mustAskForZip = !hasValidZip && (hasCareProfile || asksForContactDetails);
+    const safeExtractedData = hasValidZip
       ? extractedData
       : {
         ...extractedData,
@@ -209,7 +215,27 @@ export async function POST(request: Request) {
       safeExtractedData.name,
       safeExtractedData.phone,
     ].every(value => typeof value === 'string' && value.trim().length > 0)
-      && hasSupportedZip;
+      && hasValidZip;
+    const outOfAreaNotice = "We don't primarily serve that area, but I'll note the ZIP and help you explore resources.";
+    const outOfAreaZip = Boolean(currentZip && hasValidZip && !hasSupportedZip);
+    const asksForSpokaneZip = /\b(?:supported|Spokane|service.area)\b.{0,50}\bZIP\b|\bZIP\b.{0,50}\b(?:supported|Spokane|service area|instead)\b/i.test(response.data.replyText);
+    const outOfAreaFollowUp = !safeExtractedData.moveFor
+      ? 'Who are you looking for care for?'
+      : !safeExtractedData.medicalNeeds
+        ? 'What care needs or concerns should we keep in mind?'
+        : !safeExtractedData.adls
+          ? 'What kinds of daily support would be helpful?'
+          : !safeExtractedData.timeline
+            ? 'When are you hoping to find care?'
+            : !safeExtractedData.budget
+              ? 'What monthly budget range are you planning for?'
+              : !safeExtractedData.name
+                ? 'What is your name?'
+                : !safeExtractedData.phone
+                  ? 'What phone number is best for our care team to reach you?'
+                  : typeof safeExtractedData.interestedInMoving !== 'boolean'
+                    ? 'Would you like help with local senior moving, downsizing, or transition services?'
+                    : response.data.replyText;
     const movingServicesNotice = 'In addition to senior living placement, NextHaven also assists families with local senior moving, downsizing, and transition services.';
     const movingServicesAlreadyMentioned = parsed.data.messageHistory.some(
       message => message.sender === 'bot' && message.text.includes(movingServicesNotice),
@@ -219,8 +245,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ...response.data,
       ...(mustAskForZip ? {
-        replyText: 'Before we discuss contact details, could you share a ZIP code in our Spokane service area?',
-        suggestedReplies: spokaneServiceZipCodes.slice(0, 4),
+        replyText: 'Before we discuss contact details, could you share your five-digit ZIP code?',
+        suggestedReplies: [],
+      } : {}),
+      ...(outOfAreaZip ? {
+        replyText: `${outOfAreaNotice} ${asksForSpokaneZip ? outOfAreaFollowUp : response.data.replyText}`,
       } : {}),
       ...(needsMovingServicesAnswer ? {
         replyText: `${movingServicesNotice} Would you like help with those services too?`,

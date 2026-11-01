@@ -1,7 +1,7 @@
 import { signInAnonymously } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
-import { isSupportedSpokaneZip } from './spokaneServiceArea';
+import { isValidZipCode } from './spokaneServiceArea';
 
 export type LeadFields = {
   moveFor?: string;
@@ -37,8 +37,8 @@ export async function saveLeadData(
   sessionId: string,
   fields: LeadFields,
 ) {
-  if (!isCompleteLead(fields) || !isSupportedSpokaneZip(fields.zip)) {
-    return { saved: false, reason: 'incomplete-or-unsupported-lead' as const };
+  if (!isCompleteLead(fields) || !isValidZipCode(fields.zip)) {
+    return { saved: false, reason: 'incomplete-lead' as const };
   }
 
   if (!auth || !db) return { saved: false, reason: 'firebase-not-configured' as const };

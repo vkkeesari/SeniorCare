@@ -3,7 +3,7 @@
  import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUp, Check, Maximize2, MessageCircleHeart, Minimize2, X } from 'lucide-react';
 import { saveLeadData, type LeadFields } from '@/lib/saveLead';
-import { isSupportedSpokaneZip } from '@/lib/spokaneServiceArea';
+import { isValidZipCode } from '@/lib/spokaneServiceArea';
 
 type Sender = 'user' | 'bot';
 type ChatMessage = { sender: Sender; text: string };
@@ -124,7 +124,7 @@ export default function CareCompanion() {
       setFields(merged);
       const completed = result.isComplete
         && requiredFields.every(field => hasValue(field, merged))
-        && isSupportedSpokaneZip(merged.zip);
+        && isValidZipCode(merged.zip);
       setIsComplete(completed);
       const botMessage: ChatMessage = { sender: 'bot', text: result.replyText };
       setSuggestions(result.suggestedReplies);
@@ -137,7 +137,7 @@ export default function CareCompanion() {
           if (!saved.saved) {
             setSaveWarning(saved.reason === 'firebase-not-configured'
               ? 'Your care details are ready, but saving them requires Firebase configuration.'
-              : 'Your care details could not be saved because the lead is incomplete or its ZIP code is unsupported.');
+              : 'Your care details could not be saved because the lead is incomplete or the ZIP code is invalid.');
           }
         } catch (saveError) {
           console.error('Unable to save completed care lead:', saveError);
@@ -192,7 +192,7 @@ export default function CareCompanion() {
   const completeCount = requiredFields.filter(field => hasValue(field, fields)).length;
   const complete = isComplete
     && completeCount === requiredFields.length
-    && isSupportedSpokaneZip(fields.zip);
+    && isValidZipCode(fields.zip);
 
   const panel = (
     <div className={`flex min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F4F0E7] shadow-none ${fullScreen ? 'h-full w-full' : 'h-full'}`}>
