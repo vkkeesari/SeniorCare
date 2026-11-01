@@ -14,9 +14,9 @@ export const spokaneServiceZipCodes = [
 const spokaneServiceZipCodeSet = new Set<string>(spokaneServiceZipCodes);
 
 export function isValidZipCode(value: string | undefined) {
-  return Boolean(value && /^\d{5}(?:-\d{4})?$/.test(value));
+  return Boolean(value && (/^\d{5}(?:-\d{4})?$/.test(value) || value.toLowerCase() === 'unknown'));
 }
 
 export function isSupportedSpokaneZip(value: string | undefined) {
-  return Boolean(isValidZipCode(value) && value && spokaneServiceZipCodeSet.has(value.slice(0, 5)));
+  return Boolean(value && /^\d{5}(?:-\d{4})?$/.test(value) && spokaneServiceZipCodeSet.has(value.slice(0, 5)));
 }
