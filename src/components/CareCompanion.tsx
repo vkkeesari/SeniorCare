@@ -9,6 +9,8 @@ type Sender = 'user' | 'bot';
 type ChatMessage = { sender: Sender; text: string };
 type ChatResponse = { replyText: string; suggestedReplies: string[]; extractedData: LeadFields; isComplete: boolean; zipCorrectionRequired: boolean };
 
+class IncompleteChatResponseError extends Error {}
+
 const welcome: ChatMessage = { sender: 'bot', text: "I'm glad you're here. Who are you looking for care for?" };
 const welcomeSuggestions = ['For myself', 'For my parent', 'For my spouse', 'For a relative'];
 const requiredFields: Array<keyof LeadFields> = ['moveFor', 'medicalNeeds', 'adls', 'timeline', 'budget', 'name', 'phone', 'zip', 'interestedInMoving'];
@@ -56,47 +58,67 @@ export default function CareCompanion() {
     if (!cleanText || busyRef.current || !sessionId) return;
     const userMessage: ChatMessage = { sender: 'user', text: cleanText };
     busyRef.current = true;
+    setMessages([...messages, userMessage]);
+    setDraft('');
     setBusy(true);
     setError('');
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), chatRequestTimeoutMs);
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, messageHistory: messages.slice(-39), userMessage: cleanText }),
-        signal: controller.signal,
-      });
-      let payload: unknown;
-      try {
-        payload = await response.json();
-      } catch {
-        throw new Error('The chat service returned an incomplete response. Your message is still here; please try again.');
-      }
-      if (!response.ok) {
-        const apiError = payload && typeof payload === 'object' && 'error' in payload
-          ? payload.error
-          : undefined;
-        throw new Error(typeof apiError === 'string'
-          ? apiError
-          : 'The chat service is temporarily unavailable. Your message is still here; please try again.');
+      let result: ChatResponse | undefined;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), chatRequestTimeoutMs);
+        try {
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, messageHistory: messages.slice(-39), userMessage: cleanText }),
+            signal: controller.signal,
+          });
+          let payload: unknown;
+          try {
+            payload = await response.json();
+          } catch {
+            throw new IncompleteChatResponseError('The chat service returned an incomplete response.');
+          }
+          if (!response.ok) {
+            const apiError = payload && typeof payload === 'object' && 'error' in payload
+              ? payload.error
+              : undefined;
+            const message = typeof apiError === 'string'
+              ? apiError
+              : 'The chat service is temporarily unavailable.';
+            if (message.includes('returned an incomplete response')) {
+              throw new IncompleteChatResponseError(message);
+            }
+            throw new Error(message);
+          }
+
+          const candidate = payload as ChatResponse;
+          if (
+            !candidate
+            || typeof candidate.replyText !== 'string'
+            || !candidate.replyText.trim()
+            || !Array.isArray(candidate.suggestedReplies)
+            || !candidate.suggestedReplies.every((reply: unknown) => typeof reply === 'string')
+            || !candidate.extractedData
+            || typeof candidate.extractedData !== 'object'
+            || Array.isArray(candidate.extractedData)
+            || typeof candidate.isComplete !== 'boolean'
+            || typeof candidate.zipCorrectionRequired !== 'boolean'
+          ) {
+            throw new IncompleteChatResponseError('The chat service returned an incomplete response.');
+          }
+          result = candidate;
+          break;
+        } catch (requestError) {
+          if (requestError instanceof IncompleteChatResponseError && attempt === 0) continue;
+          throw requestError;
+        } finally {
+          window.clearTimeout(timeoutId);
+        }
       }
 
-      const result = payload as ChatResponse;
-      if (
-        !result
-        || typeof result.replyText !== 'string'
-        || !Array.isArray(result.suggestedReplies)
-        || !result.suggestedReplies.every((reply: unknown) => typeof reply === 'string')
-        || !result.extractedData
-        || typeof result.extractedData !== 'object'
-        || Array.isArray(result.extractedData)
-        || typeof result.isComplete !== 'boolean'
-        || typeof result.zipCorrectionRequired !== 'boolean'
-      ) {
-        throw new Error('The chat service returned an incomplete response. Your message is still here; please try again.');
-      }
-
+      if (!result) throw new IncompleteChatResponseError('The chat service returned an incomplete response.');
       const merged = { ...fields, ...result.extractedData };
       if (result.zipCorrectionRequired) merged.zip = undefined;
       setFields(merged);
@@ -123,6 +145,7 @@ export default function CareCompanion() {
         }
       }
     } catch (sendError) {
+      setMessages(messages);
       if (sendError instanceof DOMException && sendError.name === 'AbortError') {
         setError('The chat request timed out. Your message is still here; please try again.');
       } else if (sendError instanceof TypeError) {
@@ -132,7 +155,6 @@ export default function CareCompanion() {
       }
       setDraft(cleanText);
     } finally {
-      window.clearTimeout(timeoutId);
       busyRef.current = false;
       setBusy(false);
     }
