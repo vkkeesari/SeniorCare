@@ -2,26 +2,23 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { ArrowUp, Check, Maximize2, MessageCircleHeart, Minimize2, X } from 'lucide-react';
-import { upsertLeadData } from '@/lib/saveLead';
+import { saveLeadData, type LeadFields } from '@/lib/saveLead';
 import { isSupportedSpokaneZip } from '@/lib/spokaneServiceArea';
 
 type Sender = 'user' | 'bot';
 type ChatMessage = { sender: Sender; text: string };
-type LeadFields = {
-  moveFor?: string;
-  medicalNeeds?: string;
-  adls?: string;
-  timeline?: string;
-  budget?: string;
-  name?: string;
-  phone?: string;
-  zip?: string;
-};
 type ChatResponse = { replyText: string; suggestedReplies: string[]; extractedData: LeadFields; isComplete: boolean; zipCorrectionRequired: boolean };
 
 const welcome: ChatMessage = { sender: 'bot', text: "I'm glad you're here. Who are you looking for care for?" };
 const welcomeSuggestions = ['For myself', 'For my parent', 'For my spouse', 'For a relative'];
-const requiredFields: Array<keyof LeadFields> = ['moveFor', 'medicalNeeds', 'adls', 'timeline', 'budget', 'name', 'phone', 'zip'];
+const requiredFields: Array<keyof LeadFields> = ['moveFor', 'medicalNeeds', 'adls', 'timeline', 'budget', 'name', 'phone', 'zip', 'interestedInMoving'];
+
+function hasValue(field: keyof LeadFields, fields: LeadFields) {
+  const value = fields[field];
+  return field === 'interestedInMoving'
+    ? typeof value === 'boolean'
+    : typeof value === 'string' && value.trim().length > 0;
+}
 
 export default function CareCompanion() {
   const [sessionId, setSessionId] = useState('');
@@ -34,7 +31,7 @@ export default function CareCompanion() {
   const [expanded, setExpanded] = useState(false);
   const [fullScreen, setFullScreen] = useState(false);
   const [error, setError] = useState('');
-  const [saveWarning, setSaveWarning] = useState(false);
+  const [saveWarning, setSaveWarning] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,17 +74,25 @@ export default function CareCompanion() {
       const merged = { ...fields, ...result.extractedData };
       if (result.zipCorrectionRequired) merged.zip = undefined;
       setFields(merged);
-      setIsComplete(result.isComplete && isSupportedSpokaneZip(merged.zip));
+      const completed = result.isComplete
+        && requiredFields.every(field => hasValue(field, merged))
+        && isSupportedSpokaneZip(merged.zip);
+      setIsComplete(completed);
       const botMessage: ChatMessage = { sender: 'bot', text: result.replyText };
       setSuggestions(result.suggestedReplies);
       setMessages([...history, botMessage]);
 
-      if (!result.zipCorrectionRequired) {
+      if (completed) {
         try {
-          const saved = await upsertLeadData(sessionId, merged, botMessage);
-          if (!saved.saved) setSaveWarning(true);
-        } catch {
-          setSaveWarning(true);
+          const saved = await saveLeadData(sessionId, merged);
+          if (!saved.saved) {
+            setSaveWarning(saved.reason === 'firebase-not-configured'
+              ? 'Your care details are ready, but saving them requires Firebase configuration.'
+              : 'Your care details could not be saved because the lead is incomplete or its ZIP code is unsupported.');
+          }
+        } catch (saveError) {
+          console.error('Unable to save completed care lead:', saveError);
+          setSaveWarning('Your care details could not be saved. Please try again or use the contact form.');
         }
       }
     } catch (sendError) {
@@ -101,7 +106,7 @@ export default function CareCompanion() {
     event.preventDefault();
     void sendMessage(draft);
   };
-  const completeCount = requiredFields.filter(field => Boolean(fields[field])).length;
+  const completeCount = requiredFields.filter(field => hasValue(field, fields)).length;
   const complete = isComplete
     && completeCount === requiredFields.length
     && isSupportedSpokaneZip(fields.zip);
@@ -119,8 +124,8 @@ export default function CareCompanion() {
         </div>
       </header>
       <div className="border-b border-[#d9d2c8] bg-[#f8f4ee] px-5 py-3" aria-label="Conversation progress">
-        <div className="mb-2 flex items-center justify-between text-base"><span className="font-bold text-[#3A3530]">Your care picture</span><span className="text-[#3A3530]/70">{completeCount} of 8 details</span></div>
-        <div className="h-2 overflow-hidden rounded-full bg-[#e7e1d5]"><div className="h-full rounded-full bg-[#F4F0E7] transition-all" style={{ width: `${(completeCount / 8) * 100}%` }} /></div>
+        <div className="mb-2 flex items-center justify-between text-base"><span className="font-bold text-[#3A3530]">Your care picture</span><span className="text-[#3A3530]/70">{completeCount} of 9 details</span></div>
+        <div className="h-2 overflow-hidden rounded-full bg-[#e7e1d5]"><div className="h-full rounded-full bg-[#F4F0E7] transition-all" style={{ width: `${(completeCount / 9) * 100}%` }} /></div>
       </div>
       <div className="flex-1 space-y-4 overflow-y-auto bg-[#f8f4ee] px-4 py-5 sm:px-5" aria-live="polite" aria-relevant="additions text">
         {messages.map((message, index) => <div key={`${index}-${message.sender}`} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}><p className={`max-w-[90%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[15px] leading-6 ${message.sender === 'user' ? 'rounded-br-md bg-[#F4F0E7] text-[#304E43]' : 'rounded-bl-md bg-[#e6e1d7] text-[#3A3530]'}`}>{message.text}</p></div>)}
@@ -134,7 +139,7 @@ export default function CareCompanion() {
         <div ref={bottomRef} />
       </div>
       {suggestions.length > 0 && !busy && !error && <div className="flex gap-2 overflow-x-auto bg-[#f8f4ee] px-4 pb-3 sm:flex-wrap sm:overflow-visible sm:px-5" aria-label="Suggested replies">{suggestions.map(option => <button key={option} onClick={() => void sendMessage(option)} className="min-h-10 shrink-0 rounded-full border border-[#304E43]/25 bg-white px-3 text-sm font-semibold text-[#304E43] transition hover:bg-[#edf3ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#304E43]">{option}</button>)}</div>}
-      {saveWarning && <p className="px-5 pb-2 text-xs text-[#8b5b22]">Your message went through, but saving details needs Firebase configuration.</p>}
+      {saveWarning && <p className="px-5 pb-2 text-xs text-[#8b5b22]">{saveWarning}</p>}
       {error && <p role="alert" className="px-5 pb-2 text-sm font-semibold text-red-700">{error}</p>}
       <form onSubmit={submit} className="flex items-center gap-2 border-t border-[#d9d2c8] bg-[#f8f4ee] p-3 sm:p-4">
         <label className="sr-only" htmlFor="care-chat-message">Write a message</label>

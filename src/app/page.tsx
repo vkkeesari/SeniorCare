@@ -51,7 +51,7 @@ const sampleReviews = [
 ];
 
 export const metadata: Metadata = {
-  alternates: { canonical: '/' },
+  alternates: { canonical: 'https://www.nexthavenwa.com' },
 };
 
 export default function Home() {

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Montserrat, Playfair_Display } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -7,7 +8,7 @@ import LeadModal from '@/components/LeadModal';
 import CompanionLayout from '@/components/CompanionLayout';
 import LandingPageImage from './landing-page-image.jpg';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://senior-care-peach.vercel.app');
+const siteUrl = 'https://www.nexthavenwa.com';
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
 const montserrat = Montserrat({ subsets: ['latin'], variable: '--font-montserrat' });
 
@@ -23,8 +24,36 @@ const localBusinessStructuredData = {
       '@type': 'LocalBusiness',
       '@id': `${siteUrl}/#business`,
       name: 'NextHaven Senior Living Referral Services',
-      description: 'Free senior living referral and care advisory serving Spokane, Washington.',
+      description: 'Free senior living placement and local senior moving assistance for families in Spokane, Washington.',
       url: siteUrl,
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer service',
+        url: siteUrl,
+        availableLanguage: 'English',
+      },
+      hasOfferCatalog: {
+        '@type': 'OfferCatalog',
+        name: 'NextHaven Spokane services',
+        itemListElement: [
+          {
+            '@type': 'Offer',
+            itemOffered: {
+              '@type': 'Service',
+              name: 'Senior Housing Referral',
+              serviceType: 'Senior living placement and care advisory',
+            },
+          },
+          {
+            '@type': 'Offer',
+            itemOffered: {
+              '@type': 'Service',
+              name: 'Senior Moving Assistance',
+              serviceType: 'Local senior moving, downsizing, and transition services',
+            },
+          },
+        ],
+      },
       areaServed: [
         { '@type': 'AdministrativeArea', name: 'Greater Spokane, Washington' },
         ...serviceAreas,
@@ -40,6 +69,9 @@ const localBusinessStructuredData = {
         'Adult Family Home Advisory',
         'Skilled Nursing Care Placement',
         'Medicaid Senior Care Guidance',
+        'Senior Moving Assistance',
+        'Senior Downsizing',
+        'Senior Transition Services',
       ],
       provider: { '@id': `${siteUrl}/#business` },
       areaServed: [
@@ -51,9 +83,13 @@ const localBusinessStructuredData = {
 };
 
 export const metadata: Metadata = {
-  title: 'NextHaven | Senior Living & Assisted Living Referral in Spokane, WA',
-  description: 'Free, local senior living referral services in Spokane, WA. Expert guidance for Assisted Living ($3.5k–$10.8k/mo), Adult Family Homes, and Skilled Nursing across zip codes 99201, 99224, 99203, 99208, and greater Spokane.',
+  title: 'NextHaven | Senior Living & Moving Services in Spokane, WA',
+  description: 'Local guidance for senior living placement, memory care, and senior moving services in Spokane, WA. NextHaven helps families compare care options and plan a thoughtful transition.',
   keywords: [
+    'senior living Spokane WA',
+    'assisted living advisor',
+    'senior moving services Spokane',
+    'memory care placement',
     'Spokane senior living',
     'assisted living Spokane WA',
     'adult family home Spokane',
@@ -62,11 +98,14 @@ export const metadata: Metadata = {
     'Medicaid senior care Washington',
     'elder care referral Spokane',
   ],
+  authors: [{ name: 'NextHaven' }],
   metadataBase: new URL(siteUrl),
+  alternates: { canonical: siteUrl },
+  robots: { index: true, follow: true },
   openGraph: {
-    title: 'NextHaven Senior Living Referral Services | Spokane, WA',
-    description: 'Guiding Spokane families to brighter tomorrows. Personalized, free senior care advisory and local care placement.',
-    url: '/',
+    title: 'NextHaven | Senior Living & Moving Services in Spokane, WA',
+    description: 'Personalized Spokane guidance for senior living placement, memory care, and local senior moving, downsizing, and transition services.',
+    url: siteUrl,
     siteName: 'NextHaven Senior Living Referral Services',
     locale: 'en_US',
     type: 'website',
@@ -79,8 +118,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NextHaven Senior Living Referral Services | Spokane, WA',
-    description: 'Guiding Spokane families to brighter tomorrows. Personalized, free senior care advisory and local care placement.',
+    title: 'NextHaven | Senior Living & Moving Services in Spokane, WA',
+    description: 'Personalized Spokane guidance for senior living placement, memory care, and local senior moving, downsizing, and transition services.',
     images: [LandingPageImage.src],
   },
 };
@@ -101,6 +140,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </main>
         <Footer />
         <LeadModal />
+        <Analytics />
       </body>
     </html>
   );

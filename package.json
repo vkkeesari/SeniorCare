@@ -11,6 +11,7 @@
   "dependencies": {
     "@google/genai": "^2.24.0",
     "@hookform/resolvers": "latest",
+    "@vercel/analytics": "^2.0.1",
     "firebase": "^12.19.0",
     "framer-motion": "latest",
     "lucide-react": "latest",

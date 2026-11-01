@@ -1,25 +1,57 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function validLead(data, sessionId) {
+      return data.keys().hasAll([
+          'ownerUid', 'sessionId', 'contactInfo', 'careDetails',
+          'additionalServices', 'metadata'
+        ])
+        && data.keys().hasOnly([
+          'ownerUid', 'sessionId', 'contactInfo', 'careDetails',
+          'additionalServices', 'metadata'
+        ])
+        && data.ownerUid == request.auth.uid
+        && data.sessionId == sessionId
+        && data.contactInfo is map
+        && data.contactInfo.keys().hasAll([
+          'name', 'phone', 'email', 'preferredContactMethod'
+        ])
+        && data.contactInfo.keys().hasOnly([
+          'name', 'phone', 'email', 'preferredContactMethod'
+        ])
+        && data.contactInfo.name is string
+        && data.contactInfo.phone is string
+        && (data.contactInfo.email == null || data.contactInfo.email is string)
+        && data.contactInfo.preferredContactMethod in ['phone', 'email']
+        && data.careDetails is map
+        && data.careDetails.keys().hasAll(['careType', 'timeframe', 'zipCode', 'budget'])
+        && data.careDetails.keys().hasOnly(['careType', 'timeframe', 'zipCode', 'budget'])
+        && data.careDetails.careType is string
+        && data.careDetails.timeframe is string
+        && data.careDetails.zipCode in [
+          '99201', '99224', '99203', '99223', '99208',
+          '99205', '99206', '99212', '99216', '99037'
+        ]
+        && data.careDetails.budget is string
+        && data.additionalServices is map
+        && data.additionalServices.keys().hasAll(['interestedInMoving'])
+        && data.additionalServices.keys().hasOnly(['interestedInMoving'])
+        && data.additionalServices.interestedInMoving is bool
+        && data.metadata is map
+        && data.metadata.keys().hasAll(['source', 'status', 'createdAt'])
+        && data.metadata.keys().hasOnly(['source', 'status', 'createdAt'])
+        && data.metadata.source == 'web_chat'
+        && data.metadata.status == 'new'
+        && data.metadata.createdAt is timestamp;
+    }
+
     match /leads/{sessionId} {
       allow read: if false;
       allow create: if request.auth != null
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.sessionId == sessionId
-        && request.resource.data.keys().hasOnly([
-          'ownerUid', 'sessionId', 'moveFor', 'medicalNeeds', 'adls',
-          'timeline', 'budget', 'name', 'phone', 'zip', 'latestMessage',
-          'updatedAt'
-        ]);
+        && validLead(request.resource.data, sessionId);
       allow update: if request.auth != null
         && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.sessionId == sessionId
-        && request.resource.data.keys().hasOnly([
-          'ownerUid', 'sessionId', 'moveFor', 'medicalNeeds', 'adls',
-          'timeline', 'budget', 'name', 'phone', 'zip', 'latestMessage',
-          'updatedAt'
-        ]);
+        && validLead(request.resource.data, sessionId);
     }
   }
 }
