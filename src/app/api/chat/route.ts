@@ -35,21 +35,21 @@ When asking about monthly budget, ask whether the family has a private-pay range
 
 Our primary Spokane service ZIP codes are 99201 (Downtown Spokane), 99224 (West Spokane), 99203 (South Hill), 99223 (South Hill/Moran Prairie), 99208 (North Spokane), 99205 (Northwest Spokane), 99206 (Spokane Valley), 99212 (Spokane Valley), 99216 (Spokane Valley), and 99037 (Liberty Lake). When the user provides a ZIP in this list, confirm that our local care team services that exact Spokane-area neighborhood/area and offer relevant care pricing context based on their needs. When the user provides a ZIP outside this list, gently explain that our primary network focuses on greater Spokane, while our advisors can still help look up resources in the user's region; do not imply that the ZIP is in the primary service network or invent local pricing. If a ZIP is outside the approved list, do not extract it as the zip field and do not mark the lead complete. Ask the user for a supported ZIP instead, with concise suggestions from this list: ${spokaneServiceZipCodes.join(', ')}. If the user later provides a supported ZIP, use it in place of any previously rejected ZIP and continue the flow.
 
-Across the conversation, learn these fields gradually: moveFor (Self, Parent, Spouse, or Relative); medicalNeeds (reason for move and medical background such as falls, memory loss/dementia, or 24/7 care); adls (daily help such as bathing, medication, and mobility); timeline (Immediate/Hospital discharge, 1-3 months, or planning); budget ($3,000-$5,000, $5,000-$8,000, or $8,000+); name; phone; zip (target city or ZIP); and interestedInMoving (true only when the user says they want help with local senior moving, downsizing, or transition services, otherwise false only after they decline). Extract email and preferredContactMethod only if the user voluntarily provides them. Extract any details the user has already shared, even if phrased informally. Preserve previously learned information. If the user corrects a detail, use the correction. Ask next for the most useful missing field, one question only. Ask for contact details only after understanding care needs, timeline, and budget. When asking for phone, explain our care team will use it to follow up about care options. Once the other eight fields are known and interestedInMoving is unknown, tell the user exactly: "In addition to senior living placement, NextHaven also assists families with local senior moving, downsizing, and transition services." Then ask whether they would like help with those services. Do not mark the lead complete until the user answers yes or no to that question. When all fields are known, thank them and do not ask another question. If a user asks an unrelated question, answer it briefly and respectfully when appropriate, then return to the care conversation with one natural follow-up question for the next useful missing field. Suggestions must always match the reply: every suggested reply must be a concise, plausible direct answer to the single follow-up question in replyText. Do not show generic care-intake choices after answering an unrelated question unless they answer that explicit question. If the follow-up is open-ended (for example, asking for a name, phone number, or ZIP), use an empty suggestedReplies array rather than mismatched choices. Mark isComplete true only when all nine fields are known. Return JSON only with exactly this shape: {"replyText":"...","suggestedReplies":["..."],"extractedData":{"moveFor":"...","medicalNeeds":"...","adls":"...","timeline":"...","budget":"...","name":"...","phone":"...","email":"...","preferredContactMethod":"phone or email","zip":"...","interestedInMoving":false},"isComplete":false}. Include only extractedData values that are known; do not invent details.`;
+Before asking for the user's name, phone number, or other contact details, first collect their care needs, timeframe, and budget, then ask for and validate their ZIP code. Never ask for contact details until the ZIP is confirmed as one of our supported Spokane service ZIP codes.
+
+Across the conversation, learn these fields gradually: moveFor (Self, Parent, Spouse, or Relative); medicalNeeds (reason for move and medical background such as falls, memory loss/dementia, or 24/7 care); adls (daily help such as bathing, medication, and mobility); timeline (Immediate/Hospital discharge, 1-3 months, or planning); budget ($3,000-$5,000, $5,000-$8,000, or $8,000+); zip (target Spokane ZIP); name; phone; and interestedInMoving (true only when the user says they want help with local senior moving, downsizing, or transition services, otherwise false only after they decline). Extract email and preferredContactMethod only if the user voluntarily provides them. Extract any details the user has already shared, even if phrased informally. Preserve previously learned information. If the user corrects a detail, use the correction. Ask next for the most useful missing field, one question only. Once care needs, timeline, and budget are understood, ask for the ZIP code and validate it before requesting any name or contact details. If the ZIP is unsupported, ask for a supported Spokane ZIP and do not ask for name, phone, or email. Ask for contact details only after a supported ZIP is confirmed. When asking for phone, explain our care team will use it to follow up about care options. Once the other eight fields are known and interestedInMoving is unknown, tell the user exactly: "In addition to senior living placement, NextHaven also assists families with local senior moving, downsizing, and transition services." Then ask whether they would like help with those services. Do not mark the lead complete until the user answers yes or no to that question. When all fields are known, thank them and do not ask another question. If a user asks an unrelated question, answer it briefly and respectfully when appropriate, then return to the care conversation with one natural follow-up question for the next useful missing field. Suggestions must always match the reply: every suggested reply must be a concise, plausible direct answer to the single follow-up question in replyText. Do not show generic care-intake choices after answering an unrelated question unless they answer that explicit question. If the follow-up is open-ended (for example, asking for a name, phone number, or ZIP), use an empty suggestedReplies array rather than mismatched choices. Mark isComplete true only when all nine fields are known. Return JSON only with exactly this shape: {"replyText":"...","suggestedReplies":["..."],"extractedData":{"moveFor":"...","medicalNeeds":"...","adls":"...","timeline":"...","budget":"...","zip":"...","name":"...","phone":"...","email":"...","preferredContactMethod":"phone or email","interestedInMoving":false},"isComplete":false}. Include only extractedData values that are known; do not invent details.`;
 
 const retryDelaysMs = [500, 1000, 2000];
 const primaryModel = 'gemini-2.5-flash';
 const fallbackModels = ['gemini-3.5-flash-lite'];
 
-function getLatestZipCandidate(messageHistory: Array<{ sender: 'user' | 'bot'; text: string }>, userMessage: string) {
+function getLatestZipCandidate(userMessage: string) {
   const standaloneZip = /^\d{5,}(?:-\d{4})?$/.test(userMessage)
     ? userMessage
     : undefined;
   if (standaloneZip) return standaloneZip;
 
-  const latestBotMessage = messageHistory.at(-1);
-  if (latestBotMessage?.sender !== 'bot' || !/\b(zip|postal code)\b/i.test(latestBotMessage.text)) return undefined;
-  return userMessage.match(/\b\d{5,}(?:-\d{4})?\b/)?.[0];
+  return userMessage.match(/\b\d{5}(?:-\d{4})?\b/)?.[0];
 }
 
 function zipCorrectionResponse(extractedData: z.infer<typeof extractedDataSchema> = {}) {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(requestBody);
   if (!parsed.success) return NextResponse.json({ error: 'Please send a valid chat message.' }, { status: 400 });
 
-  const latestZip = getLatestZipCandidate(parsed.data.messageHistory, parsed.data.userMessage);
+  const latestZip = getLatestZipCandidate(parsed.data.userMessage);
   if (latestZip && !isSupportedSpokaneZip(latestZip)) {
     return NextResponse.json(zipCorrectionResponse());
   }
@@ -175,22 +175,41 @@ export async function POST(request: Request) {
     const zipToValidate = latestZip ?? extractedZip;
 
     if (zipToValidate && !isSupportedSpokaneZip(zipToValidate)) {
-      return NextResponse.json(zipCorrectionResponse(response.data.extractedData));
+      return NextResponse.json(zipCorrectionResponse());
     }
 
     const extractedData = latestZip
       ? { ...response.data.extractedData, zip: latestZip }
       : response.data.extractedData;
-    const hasCompleteCareDetails = [
+    const hasSupportedZip = isSupportedSpokaneZip(extractedData.zip);
+    const hasCareProfile = [
       extractedData.moveFor,
       extractedData.medicalNeeds,
       extractedData.adls,
       extractedData.timeline,
       extractedData.budget,
-      extractedData.name,
-      extractedData.phone,
+    ].every(value => typeof value === 'string' && value.trim().length > 0);
+    const asksForContactDetails = /\b(name|phone|phone number|contact details|email address)\b|(?:best|good|preferred) (?:number|way) to (?:reach|contact)|how (?:can|may) (?:we|our team) (?:reach|contact|call)|(?:what|which) number.*\b(call|reach|contact)\b/i.test(response.data.replyText);
+    const mustAskForZip = !hasSupportedZip && (hasCareProfile || asksForContactDetails);
+    const safeExtractedData = hasSupportedZip
+      ? extractedData
+      : {
+        ...extractedData,
+        name: undefined,
+        phone: undefined,
+        email: undefined,
+        preferredContactMethod: undefined,
+      };
+    const hasCompleteCareDetails = [
+      safeExtractedData.moveFor,
+      safeExtractedData.medicalNeeds,
+      safeExtractedData.adls,
+      safeExtractedData.timeline,
+      safeExtractedData.budget,
+      safeExtractedData.name,
+      safeExtractedData.phone,
     ].every(value => typeof value === 'string' && value.trim().length > 0)
-      && isSupportedSpokaneZip(extractedData.zip);
+      && hasSupportedZip;
     const movingServicesNotice = 'In addition to senior living placement, NextHaven also assists families with local senior moving, downsizing, and transition services.';
     const movingServicesAlreadyMentioned = parsed.data.messageHistory.some(
       message => message.sender === 'bot' && message.text.includes(movingServicesNotice),
@@ -199,6 +218,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ...response.data,
+      ...(mustAskForZip ? {
+        replyText: 'Before we discuss contact details, could you share a ZIP code in our Spokane service area?',
+        suggestedReplies: spokaneServiceZipCodes.slice(0, 4),
+      } : {}),
       ...(needsMovingServicesAnswer ? {
         replyText: `${movingServicesNotice} Would you like help with those services too?`,
         suggestedReplies: ['Yes, please', 'No, thanks'],
@@ -208,8 +231,8 @@ export async function POST(request: Request) {
         && !movingServicesAlreadyMentioned ? {
         replyText: `${response.data.replyText} ${movingServicesNotice}`,
       } : {}),
-      extractedData,
-      isComplete: hasCompleteCareDetails && typeof extractedData.interestedInMoving === 'boolean',
+      extractedData: safeExtractedData,
+      isComplete: !mustAskForZip && hasCompleteCareDetails && typeof safeExtractedData.interestedInMoving === 'boolean',
       zipCorrectionRequired: false,
     });
   } catch (error) {
