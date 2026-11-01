@@ -12,6 +12,7 @@ type ChatResponse = { replyText: string; suggestedReplies: string[]; extractedDa
 const welcome: ChatMessage = { sender: 'bot', text: "I'm glad you're here. Who are you looking for care for?" };
 const welcomeSuggestions = ['For myself', 'For my parent', 'For my spouse', 'For a relative'];
 const requiredFields: Array<keyof LeadFields> = ['moveFor', 'medicalNeeds', 'adls', 'timeline', 'budget', 'name', 'phone', 'zip', 'interestedInMoving'];
+const chatRequestTimeoutMs = 120_000;
 
 function hasValue(field: keyof LeadFields, fields: LeadFields) {
   const value = fields[field];
@@ -34,6 +35,7 @@ export default function CareCompanion() {
   const [saveWarning, setSaveWarning] = useState('');
   const pendingInitialMessageRef = useRef('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const busyRef = useRef(false);
 
   useEffect(() => {
     const id = crypto.randomUUID();
@@ -51,21 +53,50 @@ export default function CareCompanion() {
 
   const sendMessage = useCallback(async (text: string) => {
     const cleanText = text.trim();
-    if (!cleanText || busy || !sessionId) return;
+    if (!cleanText || busyRef.current || !sessionId) return;
     const userMessage: ChatMessage = { sender: 'user', text: cleanText };
-    const history = [...messages, userMessage];
-    setMessages(history);
-    setDraft('');
+    busyRef.current = true;
     setBusy(true);
     setError('');
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), chatRequestTimeoutMs);
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, messageHistory: history.slice(-40, -1), userMessage: cleanText }),
+        body: JSON.stringify({ sessionId, messageHistory: messages.slice(-39), userMessage: cleanText }),
+        signal: controller.signal,
       });
-      const result = await response.json() as ChatResponse | { error?: string };
-      if (!response.ok || !('replyText' in result)) throw new Error(('error' in result && result.error) || 'Please try sending that again.');
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new Error('The chat service returned an incomplete response. Your message is still here; please try again.');
+      }
+      if (!response.ok) {
+        const apiError = payload && typeof payload === 'object' && 'error' in payload
+          ? payload.error
+          : undefined;
+        throw new Error(typeof apiError === 'string'
+          ? apiError
+          : 'The chat service is temporarily unavailable. Your message is still here; please try again.');
+      }
+
+      const result = payload as ChatResponse;
+      if (
+        !result
+        || typeof result.replyText !== 'string'
+        || !Array.isArray(result.suggestedReplies)
+        || !result.suggestedReplies.every((reply: unknown) => typeof reply === 'string')
+        || !result.extractedData
+        || typeof result.extractedData !== 'object'
+        || Array.isArray(result.extractedData)
+        || typeof result.isComplete !== 'boolean'
+        || typeof result.zipCorrectionRequired !== 'boolean'
+      ) {
+        throw new Error('The chat service returned an incomplete response. Your message is still here; please try again.');
+      }
+
       const merged = { ...fields, ...result.extractedData };
       if (result.zipCorrectionRequired) merged.zip = undefined;
       setFields(merged);
@@ -75,7 +106,8 @@ export default function CareCompanion() {
       setIsComplete(completed);
       const botMessage: ChatMessage = { sender: 'bot', text: result.replyText };
       setSuggestions(result.suggestedReplies);
-      setMessages([...history, botMessage]);
+      setMessages([...messages, userMessage, botMessage]);
+      setDraft(currentDraft => currentDraft === cleanText ? '' : currentDraft);
 
       if (completed) {
         try {
@@ -91,17 +123,26 @@ export default function CareCompanion() {
         }
       }
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : 'Please try again in a moment.');
+      if (sendError instanceof DOMException && sendError.name === 'AbortError') {
+        setError('The chat request timed out. Your message is still here; please try again.');
+      } else if (sendError instanceof TypeError) {
+        setError('Unable to reach the chat service. Your message is still here; please check your connection and try again.');
+      } else {
+        setError(sendError instanceof Error ? sendError.message : 'Please try again in a moment.');
+      }
+      setDraft(cleanText);
     } finally {
+      window.clearTimeout(timeoutId);
+      busyRef.current = false;
       setBusy(false);
     }
-  }, [busy, fields, messages, sessionId]);
+  }, [fields, messages, sessionId]);
 
   useEffect(() => {
     const openChat = (event: Event) => {
       const detail = event instanceof CustomEvent ? event.detail as { initialMessage?: string } : undefined;
       if (detail?.initialMessage) {
-        if (sessionId && !busy) {
+        if (sessionId && !busyRef.current) {
           void sendMessage(detail.initialMessage);
         } else {
           pendingInitialMessageRef.current = detail.initialMessage;
@@ -163,7 +204,7 @@ export default function CareCompanion() {
       {error && <p role="alert" className="px-5 pb-2 text-sm font-semibold text-red-700">{error}</p>}
       <form onSubmit={submit} className="flex items-center gap-2 border-t border-[#d9d2c8] bg-[#f8f4ee] p-3 sm:p-4">
         <label className="sr-only" htmlFor="care-chat-message">Write a message</label>
-        <input id="care-chat-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="Type or use a suggestion…" className="h-12 min-w-0 flex-1 rounded-2xl border border-[#d9d2c8] bg-white px-4 text-base outline-none placeholder:text-[#3A3530]/50 focus:border-[#F4F0E7] focus:ring-2 focus:ring-[#F4F0E7]/15" maxLength={2000} />
+        <input id="care-chat-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="Type or use a suggestion…" className="h-12 min-w-0 flex-1 rounded-2xl border border-[#d9d2c8] bg-white px-4 text-base outline-none placeholder:text-[#3A3530]/50 focus:border-[#F4F0E7] focus:ring-2 focus:ring-[#F4F0E7]/15 disabled:opacity-60" maxLength={2000} disabled={busy} />
         <button type="submit" disabled={!draft.trim() || busy || !sessionId} aria-label="Send message" className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#F4F0E7] text-[#304E43] transition hover:bg-[#263f38] disabled:cursor-not-allowed disabled:opacity-45"><ArrowUp size={21} /></button>
       </form>
       <p className="bg-[#f8f4ee] px-4 pb-3 text-center text-xs text-[#3A3530]/60">No cost to families. Your details are shared with our care team.</p>

@@ -40,13 +40,6 @@ Across the conversation, learn these fields gradually: moveFor (Self, Parent, Sp
 const retryDelaysMs = [500, 1000, 2000];
 const primaryModel = 'gemini-2.5-flash';
 const fallbackModels = ['gemini-3.5-flash-lite'];
-const softFallbackResponse = {
-  replyText: "I'm experiencing a brief delay right now. Please try again in a moment.",
-  suggestedReplies: [],
-  extractedData: {},
-  isComplete: false,
-  zipCorrectionRequired: false,
-};
 
 function getLatestZipCandidate(messageHistory: Array<{ sender: 'user' | 'bot'; text: string }>, userMessage: string) {
   const standaloneZip = /^\d{5,}(?:-\d{4})?$/.test(userMessage)
@@ -88,7 +81,14 @@ function isTransientError(error: unknown) {
 }
 
 export async function POST(request: Request) {
-  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+  let requestBody: unknown;
+  try {
+    requestBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'The chat request was not valid JSON.' }, { status: 400 });
+  }
+
+  const parsed = requestSchema.safeParse(requestBody);
   if (!parsed.success) return NextResponse.json({ error: 'Please send a valid chat message.' }, { status: 400 });
 
   const latestZip = getLatestZipCandidate(parsed.data.messageHistory, parsed.data.userMessage);
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 15_000 } });
     const conversation = parsed.data.messageHistory.map(({ sender, text }) => ({
       role: sender === 'bot' ? 'model' : 'user',
       parts: [{ text }],
@@ -138,27 +138,49 @@ export async function POST(request: Request) {
         }
       }
 
-      if (!result) return NextResponse.json(softFallbackResponse);
+      if (!result) {
+        return NextResponse.json(
+          { error: 'The chat service is temporarily unavailable. Please try again.' },
+          { status: 503 },
+        );
+      }
     }
 
-    const output = JSON.parse(result.text ?? '{}') as unknown;
+    let output: unknown;
+    try {
+      output = JSON.parse(result.text ?? '');
+    } catch {
+      console.error('Care chat provider returned an invalid response.');
+      return NextResponse.json(
+        { error: 'The chat service returned an incomplete response. Please try again.' },
+        { status: 502 },
+      );
+    }
+
     const response = z.object({
       replyText: z.string().min(1).max(500),
       suggestedReplies: z.array(z.string().trim().min(1).max(80)).max(4),
       extractedData: extractedDataSchema,
       isComplete: z.boolean(),
-    }).parse(output);
+    }).safeParse(output);
+    if (!response.success) {
+      console.error('Care chat provider response did not match the expected format.');
+      return NextResponse.json(
+        { error: 'The chat service returned an incomplete response. Please try again.' },
+        { status: 502 },
+      );
+    }
 
-    const extractedZip = response.extractedData.zip?.trim();
+    const extractedZip = response.data.extractedData.zip?.trim();
     const zipToValidate = latestZip ?? extractedZip;
 
     if (zipToValidate && !isSupportedSpokaneZip(zipToValidate)) {
-      return NextResponse.json(zipCorrectionResponse(response.extractedData));
+      return NextResponse.json(zipCorrectionResponse(response.data.extractedData));
     }
 
     const extractedData = latestZip
-      ? { ...response.extractedData, zip: latestZip }
-      : response.extractedData;
+      ? { ...response.data.extractedData, zip: latestZip }
+      : response.data.extractedData;
     const hasCompleteCareDetails = [
       extractedData.moveFor,
       extractedData.medicalNeeds,
@@ -176,7 +198,7 @@ export async function POST(request: Request) {
     const needsMovingServicesAnswer = hasCompleteCareDetails && typeof extractedData.interestedInMoving !== 'boolean';
 
     return NextResponse.json({
-      ...response,
+      ...response.data,
       ...(needsMovingServicesAnswer ? {
         replyText: `${movingServicesNotice} Would you like help with those services too?`,
         suggestedReplies: ['Yes, please', 'No, thanks'],
@@ -184,7 +206,7 @@ export async function POST(request: Request) {
       ...(hasCompleteCareDetails
         && typeof extractedData.interestedInMoving === 'boolean'
         && !movingServicesAlreadyMentioned ? {
-        replyText: `${response.replyText} ${movingServicesNotice}`,
+        replyText: `${response.data.replyText} ${movingServicesNotice}`,
       } : {}),
       extractedData,
       isComplete: hasCompleteCareDetails && typeof extractedData.interestedInMoving === 'boolean',
@@ -195,6 +217,9 @@ export async function POST(request: Request) {
       status: getHttpStatus(error),
       transient: isTransientError(error),
     });
-    return NextResponse.json(softFallbackResponse);
+    return NextResponse.json(
+      { error: 'The chat service is temporarily unavailable. Please try again.' },
+      { status: 502 },
+    );
   }
 }
