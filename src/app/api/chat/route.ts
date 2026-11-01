@@ -11,18 +11,33 @@ const requestSchema = z.object({
   userMessage: z.string().trim().min(1).max(2000),
 });
 
+const optionalText = z.preprocess(
+  value => value === null ? undefined : value,
+  z.string().trim().optional(),
+);
+
 const extractedDataSchema = z.object({
-  moveFor: z.string().optional(),
-  medicalNeeds: z.string().optional(),
-  adls: z.string().optional(),
-  timeline: z.string().optional(),
-  budget: z.string().optional(),
-  name: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional(),
-  preferredContactMethod: z.enum(['phone', 'email']).optional(),
-  zip: z.string().optional(),
-  interestedInMoving: z.boolean().optional(),
+  moveFor: optionalText,
+  medicalNeeds: optionalText,
+  adls: optionalText,
+  timeline: optionalText,
+  budget: optionalText,
+  name: optionalText,
+  phone: optionalText,
+  email: z.preprocess(
+    value => {
+      if (value === null || typeof value !== 'string' || !value.trim()) return undefined;
+      return z.string().email().safeParse(value.trim()).success ? value.trim() : undefined;
+    },
+    z.string().email().optional(),
+  ),
+  preferredContactMethod: z.preprocess(value => {
+    if (value === null || typeof value !== 'string') return undefined;
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'phone' || normalized === 'email' ? normalized : undefined;
+  }, z.enum(['phone', 'email']).optional()),
+  zip: optionalText,
+  interestedInMoving: z.preprocess(value => value === null ? undefined : value, z.boolean().optional()),
 });
 
 const systemInstruction = `You are a warm, thoughtful Care Advisor with NextHaven Senior Living Referral Services, helping people explore senior care in Spokane, Washington and the surrounding local area. Sound like a real, attentive person: acknowledge the user's specific concern before asking the next question, use natural phrasing, and avoid repetitive scripts or sales language. Be patient and understand typos, misspellings, and fragments naturally. Keep every reply to 1-2 brief sentences, use plain language, and ask exactly ONE follow-up question at a time. Never diagnose or give medical advice. Do not pressure the user, imply that a placement decision has been made, or assume that a nursing home is the right option. Present care settings as options to explore based on the user's needs and preferences, and make clear that the user and their family decide what feels right. Do not manufacture urgency; if the user describes a time-sensitive situation such as a hospital discharge, acknowledge that constraint calmly and offer practical next steps without pushing a particular setting.
@@ -168,13 +183,24 @@ export async function POST(request: Request) {
     }
 
     const response = z.object({
-      replyText: z.string().min(1).max(500),
-      suggestedReplies: z.array(z.string().trim().min(1).max(80)).max(4),
-      extractedData: extractedDataSchema,
-      isComplete: z.boolean(),
+      replyText: z.string().trim().min(1).max(2000),
+      suggestedReplies: z.preprocess(
+        value => Array.isArray(value)
+          ? value.filter((reply): reply is string => typeof reply === 'string' && Boolean(reply.trim())).slice(0, 8)
+          : [],
+        z.array(z.string().trim().min(1).max(200)).max(8),
+      ),
+      extractedData: z.preprocess(
+        value => value === null ? {} : value,
+        extractedDataSchema,
+      ),
+      isComplete: z.preprocess(value => value === null || value === undefined ? false : value, z.boolean()),
     }).safeParse(output);
     if (!response.success) {
-      console.error('Care chat provider response did not match the expected format.');
+      console.error('Care chat provider response did not match the expected format:', response.error.issues.map(issue => ({
+        path: issue.path,
+        code: issue.code,
+      })));
       return NextResponse.json(
         { error: 'The chat service returned an incomplete response. Please try again.' },
         { status: 502 },
@@ -244,6 +270,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ...response.data,
+      suggestedReplies: response.data.suggestedReplies.slice(0, 4),
       ...(mustAskForZip ? {
         replyText: 'Before we discuss contact details, could you share your five-digit ZIP code?',
         suggestedReplies: [],
