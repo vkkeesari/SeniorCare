@@ -1,6 +1,6 @@
  'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUp, Check, Maximize2, MessageCircleHeart, Minimize2, X } from 'lucide-react';
 import { saveLeadData, type LeadFields } from '@/lib/saveLead';
 import { isSupportedSpokaneZip } from '@/lib/spokaneServiceArea';
@@ -32,21 +32,16 @@ export default function CareCompanion() {
   const [fullScreen, setFullScreen] = useState(false);
   const [error, setError] = useState('');
   const [saveWarning, setSaveWarning] = useState('');
+  const pendingInitialMessageRef = useRef('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const id = crypto.randomUUID();
-    const openChat = () => {
-      setExpanded(true);
-      window.setTimeout(() => document.getElementById('care-chat-message')?.focus(), 50);
-    };
-    window.addEventListener('open-care-chat', openChat);
     const frame = window.requestAnimationFrame(() => {
       setSessionId(id);
     });
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener('open-care-chat', openChat);
     };
   }, []);
 
@@ -54,7 +49,7 @@ export default function CareCompanion() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     const cleanText = text.trim();
     if (!cleanText || busy || !sessionId) return;
     const userMessage: ChatMessage = { sender: 'user', text: cleanText };
@@ -100,7 +95,32 @@ export default function CareCompanion() {
     } finally {
       setBusy(false);
     }
-  };
+  }, [busy, fields, messages, sessionId]);
+
+  useEffect(() => {
+    const openChat = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail as { initialMessage?: string } : undefined;
+      if (detail?.initialMessage) {
+        if (sessionId && !busy) {
+          void sendMessage(detail.initialMessage);
+        } else {
+          pendingInitialMessageRef.current = detail.initialMessage;
+        }
+      }
+      setExpanded(true);
+      setFullScreen(true);
+      window.setTimeout(() => document.getElementById('care-chat-message')?.focus(), 50);
+    };
+    window.addEventListener('open-care-chat', openChat);
+
+    if (sessionId && !busy && pendingInitialMessageRef.current) {
+      const initialMessage = pendingInitialMessageRef.current;
+      pendingInitialMessageRef.current = '';
+      void sendMessage(initialMessage);
+    }
+
+    return () => window.removeEventListener('open-care-chat', openChat);
+  }, [busy, sendMessage, sessionId]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

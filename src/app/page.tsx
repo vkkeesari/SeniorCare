@@ -74,7 +74,7 @@ export default function Home() {
           </div>
           <div className="mt-8 max-w-2xl">
             <h1 className="font-serif text-4xl leading-[1.08] text-[#F4F0E7] drop-shadow sm:text-6xl">HAVE A CONVERSATION TODAY</h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#F4F0E7] drop-shadow">Personalized guidance to help you find the right assisted living options for the people who matter most.</p>
+            <p className="mt-5 max-w-xl text-base leading-7 text-[#F4F0E7] drop-shadow">Personalized guidance to help you find the right assisted living options for the people who matter most. We also offer local senior moving, downsizing, and transition services.</p>
             <OpenCareChatButton className="mt-7 flex min-h-14 items-center gap-3 rounded-full bg-[#F4F0E7] px-6 font-bold text-[#304E43] transition hover:bg-[#3d6657] active:bg-[#263f38]">Start a conversation <ArrowRight size={17} /></OpenCareChatButton>
           </div>
           <div className="mt-8 flex flex-wrap gap-3 text-xs font-extrabold tracking-[0.16em] text-[#F4F0E7]">
@@ -107,7 +107,10 @@ export default function Home() {
                 </div>
                 <p className="mt-3 min-h-[4.5rem] text-sm leading-6 text-[#304E43]/80">{option.description}</p>
                 <p className="mt-4 border-t border-[#C3A46F]/40 pt-4 text-base font-extrabold text-[#C3A46F]">{option.price}</p>
-                <OpenCareChatButton className="mt-4 flex min-h-11 items-center gap-2 text-sm font-bold text-[#304E43] transition hover:text-[#C3A46F]">Talk through this option <ArrowRight size={16} /></OpenCareChatButton>
+                <OpenCareChatButton
+                  initialMessage={`I'd like to talk through ${option.title}.`}
+                  className="mt-4 flex min-h-11 items-center gap-2 text-sm font-bold text-[#304E43] transition hover:text-[#C3A46F]"
+                >Talk through this option <ArrowRight size={16} /></OpenCareChatButton>
               </div>
             </article>
           ))}
