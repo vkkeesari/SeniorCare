@@ -74,13 +74,30 @@ export default function Home() {
           </div>
           <div className="mt-8 max-w-2xl">
             <h1 className="font-serif text-4xl leading-[1.08] text-[#F4F0E7] drop-shadow sm:text-6xl">HAVE A CONVERSATION TODAY</h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#F4F0E7] drop-shadow">Personalized guidance to help you find the right assisted living options for the people who matter most. We also offer local senior moving, downsizing, and transition services.</p>
+            <p className="mt-5 max-w-xl text-base leading-7 text-[#F4F0E7] drop-shadow">Personalized guidance to help you find the right assisted living options for the people who matter most.</p>
             <OpenCareChatButton className="mt-7 flex min-h-14 items-center gap-3 rounded-full bg-[#F4F0E7] px-6 font-bold text-[#304E43] transition hover:bg-[#3d6657] active:bg-[#263f38]">Start a conversation <ArrowRight size={17} /></OpenCareChatButton>
           </div>
           <div className="mt-8 flex flex-wrap gap-3 text-xs font-extrabold tracking-[0.16em] text-[#F4F0E7]">
             {['PERSONAL', 'TRUSTED', 'LOCAL'].map(value => <span key={value} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#C3A46F] bg-[#C3A46F] px-4"><ShieldCheck size={15} aria-hidden="true" />{value}</span>)}
             <span className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#F4F0E7]/40 bg-[#182D26]/40 px-4 tracking-normal text-[#F4F0E7]"><MapPin size={16} className="text-[#C3A46F]" />Greater Spokane area</span>
           </div>
+        </div>
+      </section>
+
+      <section className="bg-[#C3A46F] px-6 py-8 text-[#182D26] sm:px-10 sm:py-10" aria-labelledby="senior-moving-services">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
+          <div>
+            <h2 id="senior-moving-services" className="max-w-4xl font-serif text-3xl font-extrabold leading-tight sm:text-4xl">
+              WE ALSO HELP WITH SENIOR MOVING, DOWNSIZING &amp; TRANSITIONS.
+            </h2>
+            <p className="mt-2 text-base font-semibold">Local support for your family&apos;s next step.</p>
+          </div>
+          <OpenCareChatButton
+            initialMessage="I'd like help with senior moving, downsizing, and transition services."
+            className="flex min-h-12 shrink-0 items-center gap-2 rounded-full bg-[#182D26] px-6 font-bold text-white transition hover:bg-[#304E43]"
+          >
+            Ask about moving services <ArrowRight size={17} />
+          </OpenCareChatButton>
         </div>
       </section>
 
